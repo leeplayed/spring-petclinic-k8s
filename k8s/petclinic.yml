@@ -8,6 +8,49 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
+  selector:
+    app: petclinic
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petclinic
+  labels:
+    app: petclinic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: petclinic
+  template:
+    metadata:
+      labels:
+        app: petclinic
+    spec:
+      containers:
+        - name: workload
+          image: dsyer/petclinic
+          ports:
+            - name: http
+              containerPort: 8080
+
+          # ★★★ 여기만 수정됨 ★★★
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petclinic
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 8080
       nodePort: 32335   # 기존 포트 그대로 유지(원하면 자동으로 하게 지워도 됨)
   selector:
     app: petclinic
