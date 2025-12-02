@@ -8,6 +8,7 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
+      nodePort: 32335   # 기존 포트 그대로 유지(원하면 자동으로 하게 지워도 됨)
   selector:
     app: petclinic
 
@@ -30,17 +31,10 @@ spec:
     spec:
       containers:
         - name: workload
-          image: dsyer/petclinic
+          image: leeplayed/spring-petclinic:latest
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: postgres
-            - name: SERVICE_BINDING_ROOT
-              value: /bindings
-            - name: SPRING_APPLICATION_JSON
-              value: |
-                {
-                  "management.endpoint.health.probes.add-additional-paths": true
-                }
+              value: h2
           ports:
             - name: http
               containerPort: 8080
@@ -48,17 +42,11 @@ spec:
             httpGet:
               path: /livez
               port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
-          volumeMounts:
-            - mountPath: /bindings/secret
-              name: binding
-              readOnly: true
-      volumes:
-        - name: binding
-          projected:
-            sources:
-              - secret:
-                  name: demo-db
+            initialDelaySeconds: 20
+            periodSeconds: 10
