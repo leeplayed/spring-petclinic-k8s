@@ -12,7 +12,7 @@ metadata:
 spec:
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:debug   # ★ debug 버전
     command:
     - cat
     tty: true
@@ -49,9 +49,7 @@ spec:
 
         stage('Maven Build') {
             steps {
-                sh """
-                ./mvnw clean package -DskipTests -Dcheckstyle.skip=true
-                """
+                sh "./mvnw clean package -DskipTests -Dcheckstyle.skip=true"
             }
         }
 
@@ -81,12 +79,9 @@ spec:
                 kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
                 kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
 
-                # Deployment 이미지 자동 업데이트
                 kubectl set image deployment/petclinic petclinic=${FULL_IMAGE} -n ${K8S_NAMESPACE}
 
-                # 롤링 업데이트 대기
                 kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE}
-                echo "===== Kubernetes Deploy Complete ====="
                 """
             }
         }
@@ -100,5 +95,4 @@ spec:
             echo "🔥 Build Failed! Check logs!"
         }
     }
-
 }
