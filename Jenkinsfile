@@ -53,8 +53,7 @@ pipeline {
 
         /*
          * ===========================
-         *   🔥 Node Disk Cleanup 
-         *   containerd 이미지, 스냅샷 자동 삭제
+         *   🔥 Node Disk Cleanup
          * ===========================
          */
         stage('Cleanup Node Disk') {
@@ -62,7 +61,6 @@ pipeline {
                 sh '''
                 echo "=== [Cleanup] Containerd cleanup start ==="
 
-                # crictl endpoint 설정 (없으면 생성)
                 mkdir -p ~/.config/crictl
                 cat <<EOF > ~/.config/crictl/config.yaml
 runtime-endpoint: unix:///run/containerd/containerd.sock
@@ -71,11 +69,9 @@ timeout: 10
 debug: false
 EOF
 
-                # containerd 사용하지 않는 이미지 삭제
                 sudo crictl rmi --prune || true
                 sudo crictl image prune || true
 
-                # Committed snapshot 제거
                 sudo ctr -n k8s.io snapshots ls | grep Committed | \
                 awk '{print $1}' | xargs -I {} sudo ctr -n k8s.io snapshots rm {} || true
 
@@ -84,9 +80,4 @@ EOF
             }
         }
 
-    } // END stages
-
-    /*
-     * ===========================
-     *  🔥 Build 후 Workspace Cleanup
-     * =========================*
+    } // END sta
