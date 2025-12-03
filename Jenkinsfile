@@ -25,7 +25,7 @@ pipeline {
                 }
 
                 git credentialsId: "${GIT_CRED_ID}",
-                    url: "git@github.com:leeplayed/spring-petclinic-k8s.git",
+                    url: "https://github.com/leeplayed/spring-petclinic-k8s.git",
                     branch: "main"
             }
         }
