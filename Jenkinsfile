@@ -1,11 +1,41 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            label 'kaniko-build'
+            defaultContainer 'kaniko'
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: jenkins-kaniko
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+    - name: docker-config
+      mountPath: /kaniko/.docker/
+  volumes:
+  - name: docker-config
+    secret:
+      secretName: dockerhub-secret
+      items:
+      - key: .dockerconfigjson
+        path: config.json
+"""
+        }
+    }
 
     environment {
         REGISTRY = "docker.io/leeplayed"
         IMAGE = "petclinic"
         TAG = "latest"
         K8S_NAMESPACE = "app"
+        FULL_IMAGE = "${REGISTRY}/${IMAGE}:${TAG}"
     }
 
     stages {
@@ -25,62 +55,42 @@ pipeline {
             }
         }
 
-        stage('Docker Build') {
+        stage('Build & Push with Kaniko') {
             steps {
-                sh """
-                echo "==== Docker Build Start ===="
-                docker build -t ${REGISTRY}/${IMAGE}:${TAG} .
-                """
-            }
-        }
+                container('kaniko') {
+                    sh """
+                    echo "===== Kaniko Build Start ====="
 
-        stage('Docker Push') {
-            steps {
-                sh """
-                echo "==== Docker Push Start ===="
-                docker push ${REGISTRY}/${IMAGE}:${TAG}
-                """
+                    /kaniko/executor \
+                        --context `pwd` \
+                        --dockerfile Dockerfile \
+                        --destination ${FULL_IMAGE} \
+                        --snapshotMode=redo \
+                        --cache=true
+
+                    echo "===== Kaniko Build End ====="
+                    """
+                }
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
-                echo "==== K8s Deploy Start ===="
+                echo "===== Kubernetes Deploy Start ====="
                 kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
                 kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
-                kubectl rollout restart deployment petclinic -n ${K8S_NAMESPACE}
+
+                # Deployment 이미지 자동 업데이트
+                kubectl set image deployment/petclinic petclinic=${FULL_IMAGE} -n ${K8S_NAMESPACE}
+
+                # 롤링 업데이트 대기
+                kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE}
+                echo "===== Kubernetes Deploy Complete ====="
                 """
             }
         }
-
-        stage('Cleanup Node Disk') {
-            steps {
-                sh """
-                echo "=== [Cleanup] Containerd cleanup start ==="
-
-                mkdir -p ~/.config/crictl
-                cat <<EOF > ~/.config/crictl/config.yaml
-runtime-endpoint: unix:///run/containerd/containerd.sock
-image-endpoint: unix:///run/containerd/containerd.sock
-timeout: 10
-debug: false
-EOF
-
-                # Unused images cleanup
-                sudo crictl rmi --prune || true
-                sudo crictl image prune || true
-
-                # Committed snapshot cleanup
-                sudo ctr -n k8s.io snapshots ls | grep Committed | \
-                awk '{print \$1}' | xargs -I {} sudo ctr -n k8s.io snapshots rm {} || true
-
-                echo "=== [Cleanup] Finished ==="
-                """
-            }
-        }
-
-    } // stages
+    }
 
     post {
         success {
@@ -90,4 +100,5 @@ EOF
             echo "🔥 Build Failed! Check logs!"
         }
     }
+
 }
