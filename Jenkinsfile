@@ -2,98 +2,91 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIAL = 'dockerhub-cred'
-        GITHUB_CREDENTIAL = 'github-ssh-key'
-        DOCKER_REPO = "leeplayed/spring-petclinic"
+        REGISTRY = "docker.io/leeplayed"
+        IMAGE = "petclinic"
+        TAG = "latest"
         K8S_NAMESPACE = "app"
-        DEPLOYMENT_NAME = "petclinic"
     }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                echo ">>> 1. Checkout from GitHub..."
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[
-                        url: 'git@github.com:leeplayed/spring-petclinic-k8s.git',
-                        credentialsId: "${GITHUB_CREDENTIAL}"
-                    ]]
-                ])
+                git branch: 'main',
+                    url: 'https://github.com/leeplayed/spring-petclinic-k8s.git'
             }
         }
 
-        stage('Build JAR (Gradle)') {
+        stage('Maven Build') {
             steps {
-                echo ">>> 2. Gradle Build..."
                 sh """
-                docker run --rm \
-                    -v ${WORKSPACE}:/workspace \
-                    -w /workspace \
-                    gradle:7.6.2-jdk17 \
-                    gradle clean build -x test
+                ./mvnw clean package -DskipTests
                 """
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build') {
             steps {
-                echo ">>> 3. Building Docker Image..."
-                script {
-                    GIT_TAG = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
-                    IMAGE_TAG = "${DOCKER_REPO}:${GIT_TAG}"
-                    IMAGE_LATEST = "${DOCKER_REPO}:latest"
-                }
-
                 sh """
-                docker build -t ${IMAGE_TAG} -t ${IMAGE_LATEST} .
+                docker build -t ${REGISTRY}/${IMAGE}:${TAG} .
                 """
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Docker Push') {
             steps {
-                echo ">>> 4. Push to DockerHub..."
-                withCredentials([usernamePassword(
-                    credentialsId: "${DOCKERHUB_CREDENTIAL}",
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh """
-                    echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-                    docker push ${IMAGE_TAG}
-                    docker push ${IMAGE_LATEST}
-                    """
-                }
+                sh """
+                docker push ${REGISTRY}/${IMAGE}:${TAG}
+                """
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                echo ">>> 5. Deploying to Kubernetes..."
-
                 sh """
-                sed -i 's|image: .*|image: ${IMAGE_TAG}|g' k8s/deployment.yml
-
-                kubectl apply -f k8s/ -n ${K8S_NAMESPACE}
-
-                kubectl rollout restart deployment ${DEPLOYMENT_NAME} -n ${K8S_NAMESPACE}
+                kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
+                kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
+                kubectl rollout restart deployment petclinic -n ${K8S_NAMESPACE}
                 """
             }
         }
-    }
 
-    post {
-        always {
-            echo ">>> Pipeline Finished."
+        /*
+         * ===========================
+         *   🔥 Node Disk Cleanup 
+         *   containerd 이미지, 스냅샷 자동 삭제
+         * ===========================
+         */
+        stage('Cleanup Node Disk') {
+            steps {
+                sh '''
+                echo "=== [Cleanup] Containerd cleanup start ==="
+
+                # crictl endpoint 설정 (없으면 생성)
+                mkdir -p ~/.config/crictl
+                cat <<EOF > ~/.config/crictl/config.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 10
+debug: false
+EOF
+
+                # containerd 사용하지 않는 이미지 삭제
+                sudo crictl rmi --prune || true
+                sudo crictl image prune || true
+
+                # Committed snapshot 제거
+                sudo ctr -n k8s.io snapshots ls | grep Committed | \
+                awk '{print $1}' | xargs -I {} sudo ctr -n k8s.io snapshots rm {} || true
+
+                echo "=== [Cleanup] Containerd cleanup finished ==="
+                '''
+            }
         }
-        failure {
-            echo "❌ Pipeline Failed!"
-        }
-        success {
-            echo "✅ Successfully deployed new version!"
-        }
-    }
-}
+
+    } // END stages
+
+    /*
+     * ===========================
+     *  🔥 Build 후 Workspace Cleanup
+     * =========================*
