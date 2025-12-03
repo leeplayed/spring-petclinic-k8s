@@ -11,6 +11,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
+                echo ">>> 1. Checkout SCM"
                 checkout scm
             }
         }
@@ -26,7 +27,7 @@ pipeline {
 
         stage('Build JAR') {
             steps {
-                echo ">>> 2. Maven Build..."
+                echo ">>> 2. Maven Build"
 
                 sh """
                 cd spring-petclinic-k8s
@@ -41,7 +42,8 @@ pipeline {
 
         stage('Build & Push Docker Image') {
             steps {
-                echo ">>> 3. Build Docker Image..."
+                echo ">>> 3. Build & Push Docker Image"
+
                 sh """
                 cd spring-petclinic-k8s
                 docker build -t \$DOCKER_IMAGE:\$DOCKER_TAG .
@@ -50,4 +52,20 @@ pipeline {
             }
         }
 
-        stage('Deploy to
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo ">>> 4. Deploying to Kubernetes"
+
+                sh """
+                kubectl set image deployment/petclinic petclinic=\$DOCKER_IMAGE:\$DOCKER_TAG -n \$K8S_NAMESPACE
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            echo ">>> Pipeline Finished."
+        }
+    }
+}
