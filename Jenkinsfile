@@ -20,8 +20,8 @@ pipeline {
             steps {
                 echo ">>> 2. Maven Build..."
 
-                // Maven Docker 이미지로 빌드
                 sh """
+                cd spring-petclinic-k8s
                 docker run --rm \
                     -v \$PWD:/app \
                     -w /app \
@@ -34,7 +34,9 @@ pipeline {
         stage('Build & Push Docker Image') {
             steps {
                 echo ">>> 3. Build Docker Image..."
+
                 sh """
+                cd spring-petclinic-k8s
                 docker build -t \$DOCKER_IMAGE:\$DOCKER_TAG .
                 docker push \$DOCKER_IMAGE:\$DOCKER_TAG
                 """
@@ -43,7 +45,7 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                echo ">>> 4. Deploying to Kubernetes..."
+                echo ">>> 4. Deploy to Kubernetes..."
                 sh """
                 kubectl set image deployment/petclinic petclinic=\$DOCKER_IMAGE:\$DOCKER_TAG -n \$K8S_NAMESPACE
                 """
