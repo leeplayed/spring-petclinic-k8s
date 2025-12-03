@@ -15,6 +15,7 @@ spec:
 
   containers:
 
+  # 1. Kaniko 컨테이너 — Docker build & push
   - name: kaniko
     image: gcr.io/kaniko-project/executor:debug
     command: ["cat"]
@@ -31,6 +32,7 @@ spec:
         cpu: "500m"
         ephemeral-storage: "2Gi"
 
+  # 2. Maven 컨테이너 — Java build
   - name: maven
     image: maven:3.9.6-eclipse-temurin-17
     command: ["cat"]
@@ -47,6 +49,7 @@ spec:
         cpu: "1000m"
         ephemeral-storage: "1Gi"
 
+  # 3. Kubectl 컨테이너 — Kubernetes deploy
   - name: kubectl
     image: bitnami/kubectl:latest
     command: ["cat"]
@@ -59,6 +62,7 @@ spec:
         memory: "128Mi"
         cpu: "100m"
 
+  # 4. JNLP — Jenkins agent container
   - name: jnlp
     image: jenkins/inbound-agent:latest
     resources:
@@ -83,12 +87,13 @@ spec:
 
     environment {
         REGISTRY = "docker.io/leeplayed"
-        IMAGE    = "petclinic"
-        TAG      = "${env.BUILD_NUMBER}"   // 빌드번호를 태그로
+        IMAGE = "petclinic"
+        TAG = "${env.BUILD_NUMBER}"  // 최신 태그 = 빌드 번호
         K8S_NAMESPACE = "app"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
