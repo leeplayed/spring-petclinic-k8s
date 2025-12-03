@@ -11,7 +11,8 @@ metadata:
     jenkins: kaniko-build
 spec:
   securityContext:
-    fsGroup: 1000  # 모든 볼륨을 jenkins UID로 접근 가능하게 설정
+    runAsUser: 1000   # 컨테이너 프로세스를 jenkins UID로 실행
+    fsGroup: 1000     # 모든 볼륨 접근 그룹을 jenkins UID로 설정
   containers:
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
