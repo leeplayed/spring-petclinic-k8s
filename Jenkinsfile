@@ -2,14 +2,13 @@ pipeline {
     // Kubernetes Pod Template을 Agent로 사용
     agent {
         kubernetes {
-            label 'kaniko-build'
             defaultContainer 'jnlp' // 기본 실행 컨테이너
             yaml """
 apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    jenkins: kaniko
+    jenkins: kaniko-build # YAML 내부의 레이블은 그대로 유지하거나 (Optional)
 spec:
   # 빌드가 특정 노드에서 실행되도록 노드 셀렉터 설정
   nodeSelector:
@@ -85,21 +84,19 @@ spec:
         }
     }
 
-    // ⚠️ tools { jdk null } 블록이 제거되었습니다.
-
     // 환경 변수 정의
     environment {
         REGISTRY = "docker.io/leeplayed"
         IMAGE = "petclinic"
-        TAG = "${env.BUILD_NUMBER}"  // 이미지 태그를 빌드 번호로 설정
+        TAG = "${env.BUILD_NUMBER}"
         K8S_NAMESPACE = "app"
     }
 
     stages {
+        // ... (나머지 Stage는 동일)
 
         stage('Checkout') {
             steps {
-                // SCM에서 코드 체크아웃
                 git branch: 'main',
                     url: 'git@github.com:leeplayed/spring-petclinic-k8s.git',
                     credentialsId: 'github-ssh-key'
@@ -108,18 +105,14 @@ spec:
 
         stage('Maven Build') {
             steps {
-                // Maven 컨테이너에서 Java 빌드 실행
                 container('maven') {
-                    sh """
-                    ./mvnw clean package -DskipTests -Dcheckstyle.skip=true
-                    """
+                    sh "./mvnw clean package -DskipTests -Dcheckstyle.skip=true"
                 }
             }
         }
 
         stage('Kaniko Build & Push') {
             steps {
-                // Kaniko 컨테이너에서 Docker 이미지 빌드 및 푸시
                 container('kaniko') {
                     sh """
                     echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
@@ -136,7 +129,6 @@ spec:
 
         stage('Deploy to Kubernetes') {
             steps {
-                // Kubectl 컨테이너에서 배포 실행
                 container('kubectl') {
                     sh """
                     echo "🔄 Updating Deployment Image..."
