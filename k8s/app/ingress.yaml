@@ -2,13 +2,13 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: petclinic-ingress
-  namespace: default
+  namespace: app   # default → app
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
-  - host: petclinic.local
+  - host: petclinic.exp.com
     http:
       paths:
       - path: /
