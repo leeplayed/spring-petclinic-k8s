@@ -19,7 +19,15 @@ pipeline {
         stage('Build JAR') {
             steps {
                 echo ">>> 2. Maven Build..."
-                sh 'mvn clean package -DskipTests'
+
+                // Maven Docker 이미지로 빌드
+                sh """
+                docker run --rm \
+                    -v \$PWD:/app \
+                    -w /app \
+                    maven:3.9.6-eclipse-temurin-17 \
+                    mvn clean package -DskipTests
+                """
             }
         }
 
