@@ -6,42 +6,33 @@ pipeline {
             yaml """
 apiVersion: v1
 kind: Pod
-metadata:
-  labels:
-    app: jenkins-kaniko
 spec:
+  nodeSelector:
+    jenkins-node: "true"
   containers:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:debug
     command:
     - cat
     tty: true
-    volumeMounts:
-    - name: docker-config
-      mountPath: /kaniko/.docker/
-  - name: jnlp
-    image: jenkins/inbound-agent:3345.v03dee9b_f88fc-1
     resources:
       requests:
-        cpu: "100m"
+        memory: "512Mi"
+        cpu: "500m"
+        ephemeral-storage: "2Gi"
+  - name: jnlp
+    image: jenkins/inbound-agent:latest
+    resources:
+      requests:
         memory: "256Mi"
-    volumeMounts:
-    - name: workspace-volume
-      mountPath: /home/jenkins/agent
-      readOnly: false
-  nodeSelector:
-    jenkins-node: "true"
-  restartPolicy: Never
+        cpu: "100m"
+        ephemeral-storage: "1Gi"
   volumes:
   - name: docker-config
     secret:
       secretName: dockertoken
-      items:
-      - key: .dockerconfigjson
-        path: config.json
-  - emptyDir:
-      medium: ""
-    name: workspace-volume
+  - name: workspace-volume
+    emptyDir: {}
 """
         }
     }
@@ -51,41 +42,41 @@ spec:
         IMAGE = "petclinic"
         TAG = "latest"
         K8S_NAMESPACE = "app"
-        FULL_IMAGE = "${REGISTRY}/${IMAGE}:${TAG}"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                container('jnlp') {
-                    git branch: 'main',
-                        url: 'https://github.com/leeplayed/spring-petclinic-k8s.git',
-                        credentialsId: 'github-token'
-                }
+                git branch: 'main',
+                    url: 'git@github.com:leeplayed/spring-petclinic-k8s.git',
+                    credentialsId: 'github-ssh-key'
             }
         }
 
         stage('Maven Build') {
             steps {
-                container('jnlp') {
-                    sh "./mvnw clean package -DskipTests -Dcheckstyle.skip=true"
+                container('kaniko') {
+                    sh """
+                    export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+                    export PATH=\$JAVA_HOME/bin:\$PATH
+                    ./mvnw clean package -DskipTests -Dcheckstyle.skip=true
+                    """
                 }
             }
         }
 
-        stage('Build & Push with Kaniko') {
+        stage('Kaniko Build & Push') {
             steps {
                 container('kaniko') {
                     sh """
                     echo "===== Kaniko Build Start ====="
                     /kaniko/executor \
-                        --context `pwd` \
-                        --dockerfile Dockerfile \
-                        --destination ${FULL_IMAGE} \
-                        --snapshotMode=redo \
-                        --cache=true
-                    echo "===== Kaniko Build End ====="
+                      --context \$WORKSPACE \
+                      --dockerfile Dockerfile \
+                      --destination ${REGISTRY}/${IMAGE}:${TAG} \
+                      --snapshot-mode=redo \
+                      --cache=true
                     """
                 }
             }
@@ -93,20 +84,43 @@ spec:
 
         stage('Deploy to Kubernetes') {
             steps {
-                container('jnlp') {
+                container('kaniko') {
                     sh """
-                    echo "===== Kubernetes Deploy Start ====="
                     kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
                     kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
-
-                    kubectl set image deployment/petclinic petclinic=${FULL_IMAGE} -n ${K8S_NAMESPACE}
-                    kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE}
-                    echo "===== Kubernetes Deploy Complete ====="
+                    kubectl rollout restart deployment petclinic -n ${K8S_NAMESPACE}
                     """
                 }
             }
         }
-    }
+
+        stage('Cleanup Node Disk') {
+            steps {
+                container('kaniko') {
+                    sh """
+                    echo "=== [Cleanup] Containerd cleanup start ==="
+
+                    mkdir -p ~/.config/crictl
+                    cat <<EOF > ~/.config/crictl/config.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 10
+debug: false
+EOF
+
+                    sudo crictl rmi --prune || true
+                    sudo crictl image prune || true
+
+                    sudo ctr -n k8s.io snapshots ls | grep Committed | \
+                      awk '{print \$1}' | xargs -I {} sudo ctr -n k8s.io snapshots rm {} || true
+
+                    echo "=== [Cleanup] Finished ==="
+                    """
+                }
+            }
+        }
+
+    } // stages
 
     post {
         success {
