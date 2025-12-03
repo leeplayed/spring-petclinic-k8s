@@ -14,15 +14,17 @@ spec:
     jenkins-node: "true"
 
   containers:
+
   - name: kaniko
     image: gcr.io/kaniko-project/executor:debug
-    command:
-    - cat
+    command: ["cat"]
     tty: true
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker/
       readOnly: true
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent/workspace/
     resources:
       requests:
         memory: "512Mi"
@@ -31,12 +33,14 @@ spec:
 
   - name: maven
     image: maven:3.9.6-eclipse-temurin-17
-    command:
-    - cat
+    command: ["cat"]
     tty: true
     env:
     - name: JAVA_HOME
       value: /usr/local/openjdk-17
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent/workspace/
     resources:
       requests:
         memory: "1Gi"
@@ -45,9 +49,11 @@ spec:
 
   - name: kubectl
     image: bitnami/kubectl:latest
-    command:
-    - cat
+    command: ["cat"]
     tty: true
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent/workspace/
     resources:
       requests:
         memory: "128Mi"
@@ -72,18 +78,17 @@ spec:
     }
 
     tools {
-        jdk null  // ❗ Jenkins Host JDK 사용 안 함 (Maven 컨테이너 JDK만 사용)
+        jdk null
     }
 
     environment {
         REGISTRY = "docker.io/leeplayed"
-        IMAGE = "petclinic"
-        TAG = "latest"
+        IMAGE    = "petclinic"
+        TAG      = "${env.BUILD_NUMBER}"   // 빌드번호를 태그로
         K8S_NAMESPACE = "app"
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -106,7 +111,7 @@ spec:
             steps {
                 container('kaniko') {
                     sh """
-                    echo "===== Kaniko Build Start ====="
+                    echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
                     /kaniko/executor \
                       --context \$WORKSPACE \
                       --dockerfile Dockerfile \
@@ -122,10 +127,11 @@ spec:
             steps {
                 container('kubectl') {
                     sh """
-                    kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
-                    kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
-                    kubectl rollout restart deployment petclinic -n ${K8S_NAMESPACE}
-                    kubectl rollout status deployment petclinic -n ${K8S_NAMESPACE} --timeout=5m
+                    echo "🔄 Updating Deployment Image..."
+                    kubectl set image deployment/petclinic petclinic-container=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
+
+                    echo "⏳ Waiting for rollout..."
+                    kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
                     """
                 }
             }
@@ -134,10 +140,11 @@ spec:
 
     post {
         success {
-            echo "🎉 Build & Deploy Success!"
+            echo "🎉 SUCCESS: Build & Deploy Completed!"
+            echo "➡️ Image: ${REGISTRY}/${IMAGE}:${TAG}"
         }
         failure {
-            echo "🔥 Build Failed! Check logs!"
+            echo "🔥 FAILED: Check the Jenkins logs!"
         }
     }
 }
