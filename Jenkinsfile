@@ -53,7 +53,7 @@ pipeline {
 
         /*
          * ===========================
-         *   🔥 Node Disk Cleanup
+         *   🔥 Node Disk Cleanup 
          * ===========================
          */
         stage('Cleanup Node Disk') {
@@ -80,4 +80,12 @@ EOF
             }
         }
 
-    } // END sta
+    } // END stages
+
+    /*
+     * ===========================
+     *  🔥 Build 후 Workspace Cleanup
+     * ===========================
+     */
+
+}  // ← ★★★ 여기 꼭
