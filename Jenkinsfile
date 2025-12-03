@@ -11,22 +11,17 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                echo ">>> 1. Checking out code from SCM..."
+                echo ">>> 1. Checkout SCM"
                 checkout scm
             }
         }
 
-        stage('Build JAR') {
+        stage('Build JAR (Gradle)') {
             steps {
-                echo ">>> 2. Maven Build"
-
+                echo ">>> 2. Gradle Build"
                 sh """
-                docker run --rm \
-                    -u root \
-                    -v \$PWD:/app \
-                    -w /app \
-                    maven:3.9.6-eclipse-temurin-17 \
-                    mvn clean package -DskipTests
+                chmod +x ./gradlew
+                ./gradlew clean build -x test
                 """
             }
         }
@@ -43,13 +38,12 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                echo ">>> 4. Deploying to Kubernetes"
+                echo ">>> 4. Deploy to Kubernetes"
                 sh """
                 kubectl set image deployment/petclinic petclinic=\$DOCKER_IMAGE:\$DOCKER_TAG -n \$K8S_NAMESPACE
                 """
             }
         }
-
     }
 
     post {
