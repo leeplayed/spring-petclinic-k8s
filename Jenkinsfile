@@ -11,8 +11,15 @@ metadata:
     jenkins: kaniko-build
 spec:
   securityContext:
-    runAsUser: 1000   # 컨테이너 프로세스를 jenkins UID로 실행
-    fsGroup: 1000     # 모든 볼륨 접근 그룹을 jenkins UID로 설정
+    runAsUser: 1000
+    fsGroup: 1000
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+    - key: "node.kubernetes.io/disk-pressure"
+      operator: "Exists"
+      effect: "NoSchedule"
   containers:
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
@@ -26,9 +33,8 @@ spec:
           mountPath: /home/jenkins/agent/workspace/
       resources:
         requests:
-          memory: "512Mi"
-          cpu: "500m"
-          ephemeral-storage: "2Gi"
+          memory: "256Mi"
+          cpu: "250m"
 
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
@@ -42,9 +48,8 @@ spec:
           mountPath: /home/jenkins/agent/workspace/
       resources:
         requests:
-          memory: "1Gi"
-          cpu: "1000m"
-          ephemeral-storage: "1Gi"
+          memory: "512Mi"
+          cpu: "500m"
 
     - name: kubectl
       image: bitnami/kubectl:latest
@@ -60,14 +65,14 @@ spec:
 
     - name: jnlp
       image: jenkins/inbound-agent:latest
+      volumeMounts:
+        - name: workspace-volume
+          mountPath: /home/jenkins/agent/workspace/
       resources:
         requests:
           memory: "256Mi"
           cpu: "100m"
           ephemeral-storage: "1Gi"
-      volumeMounts:
-        - name: workspace-volume
-          mountPath: /home/jenkins/agent/workspace/
 
   volumes:
     - name: docker-config
