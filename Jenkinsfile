@@ -21,12 +21,11 @@ pipeline {
 
         stage('STOP for Debug') {
             steps {
-                echo \"------------------------------------------------------------\"
-                echo \"❗ BUILD STOPPED ON PURPOSE\"
-                echo \"❗ Send me the output of the Check Workspace stage.\"
-                echo \"❗ Then I will generate the FINAL Jenkinsfile for you.\"
-                echo \"------------------------------------------------------------\"
-                error("Stopping pipeline here for workspace path verification")
+                echo "------------------------------------------------------------"
+                echo "⚠️  STOPPED: Need workspace info to continue."
+                echo "⚠️  Send me the output of Check Workspace stage."
+                echo "------------------------------------------------------------"
+                error("Stopping pipeline for workspace verification")
             }
         }
     }
