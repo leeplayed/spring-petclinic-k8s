@@ -46,7 +46,7 @@ spec:
 
         // 젠킨스 Credentials ID
         GIT_CRED_ID   = 'github-ssh-key'
-        DOCKER_TOKEN_ID = 'dockerhub-token'
+        DOCKER_TOKEN_ID = 'dockertoken'
     }
 
     stages {
