@@ -10,6 +10,8 @@ metadata:
   labels:
     jenkins: kaniko-build
 spec:
+  securityContext:
+    fsGroup: 1000  # 모든 볼륨을 jenkins UID로 접근 가능하게 설정
   containers:
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
@@ -62,6 +64,9 @@ spec:
           memory: "256Mi"
           cpu: "100m"
           ephemeral-storage: "1Gi"
+      volumeMounts:
+        - name: workspace-volume
+          mountPath: /home/jenkins/agent/workspace/
 
   volumes:
     - name: docker-config
