@@ -1,8 +1,9 @@
 pipeline {
+    // Kubernetes Pod Template을 Agent로 사용
     agent {
         kubernetes {
             label 'kaniko-build'
-            defaultContainer 'jnlp'
+            defaultContainer 'jnlp' // 기본 실행 컨테이너
             yaml """
 apiVersion: v1
 kind: Pod
@@ -10,6 +11,7 @@ metadata:
   labels:
     jenkins: kaniko
 spec:
+  # 빌드가 특정 노드에서 실행되도록 노드 셀렉터 설정
   nodeSelector:
     jenkins-node: "true"
 
@@ -62,7 +64,7 @@ spec:
         memory: "128Mi"
         cpu: "100m"
 
-  # 4. JNLP — Jenkins agent container
+  # 4. JNLP — Jenkins agent container (필수)
   - name: jnlp
     image: jenkins/inbound-agent:latest
     resources:
@@ -72,23 +74,24 @@ spec:
         ephemeral-storage: "1Gi"
 
   volumes:
+  # Docker Hub 인증을 위한 Secret 볼륨 마운트
   - name: docker-config
     secret:
       secretName: dockertoken
+  # 컨테이너 간 작업 공간 공유를 위한 EmptyDir 볼륨
   - name: workspace-volume
     emptyDir: {}
 """
         }
     }
 
-    tools {
-        jdk null
-    }
+    // ⚠️ tools { jdk null } 블록이 제거되었습니다.
 
+    // 환경 변수 정의
     environment {
         REGISTRY = "docker.io/leeplayed"
         IMAGE = "petclinic"
-        TAG = "${env.BUILD_NUMBER}"  // 최신 태그 = 빌드 번호
+        TAG = "${env.BUILD_NUMBER}"  // 이미지 태그를 빌드 번호로 설정
         K8S_NAMESPACE = "app"
     }
 
@@ -96,6 +99,7 @@ spec:
 
         stage('Checkout') {
             steps {
+                // SCM에서 코드 체크아웃
                 git branch: 'main',
                     url: 'git@github.com:leeplayed/spring-petclinic-k8s.git',
                     credentialsId: 'github-ssh-key'
@@ -104,6 +108,7 @@ spec:
 
         stage('Maven Build') {
             steps {
+                // Maven 컨테이너에서 Java 빌드 실행
                 container('maven') {
                     sh """
                     ./mvnw clean package -DskipTests -Dcheckstyle.skip=true
@@ -114,6 +119,7 @@ spec:
 
         stage('Kaniko Build & Push') {
             steps {
+                // Kaniko 컨테이너에서 Docker 이미지 빌드 및 푸시
                 container('kaniko') {
                     sh """
                     echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
@@ -130,6 +136,7 @@ spec:
 
         stage('Deploy to Kubernetes') {
             steps {
+                // Kubectl 컨테이너에서 배포 실행
                 container('kubectl') {
                     sh """
                     echo "🔄 Updating Deployment Image..."
@@ -143,6 +150,7 @@ spec:
         }
     }
 
+    // 후처리 작업 (성공/실패 알림)
     post {
         success {
             echo "🎉 SUCCESS: Build & Deploy Completed!"
