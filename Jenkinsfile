@@ -2,59 +2,50 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "leeplayed/petclinic"
-        DOCKER_TAG = "latest"
+        DOCKER_IMAGE = "leeplayed/spring-petclinic"
+        DOCKER_TAG = "${BUILD_NUMBER}"
+        K8S_NAMESPACE = "app"
     }
 
     stages {
 
         stage('Checkout Code') {
             steps {
-                echo ">>> 1. Checking out GitHub repository..."
+                echo ">>> 1. Checking out code from SCM..."
                 checkout scm
             }
         }
 
-        stage('Build & Push Image') {
+        stage('Build JAR') {
             steps {
-                echo ">>> 2. Building Docker Image & Push to Docker Hub..."
+                echo ">>> 2. Maven Build..."
+                sh 'mvn clean package -DskipTests'
+            }
+        }
 
-                withCredentials([string(credentialsId: 'dockertoken', variable: 'DOCKER_TOKEN')]) {
-                    sh '''
-                        echo ">>> Docker Login..."
-                        echo $DOCKER_TOKEN | docker login -u "leeplayed" --password-stdin
-
-                        echo ">>> Building Docker Image..."
-                        docker build -t $DOCKER_IMAGE:$DOCKER_TAG .
-
-                        echo ">>> Pushing to Docker Hub..."
-                        docker push $DOCKER_IMAGE:$DOCKER_TAG
-
-                        echo ">>> Docker Logout..."
-                        docker logout
-                    '''
-                }
+        stage('Build & Push Docker Image') {
+            steps {
+                echo ">>> 3. Build Docker Image..."
+                sh """
+                docker build -t \$DOCKER_IMAGE:\$DOCKER_TAG .
+                docker push \$DOCKER_IMAGE:\$DOCKER_TAG
+                """
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                echo ">>> 3. Deploying to Kubernetes..."
-
-                sh '''
-                    echo ">>> Applying Kubernetes manifests..."
-                    kubectl apply -f k8s/app/
-                '''
+                echo ">>> 4. Deploying to Kubernetes..."
+                sh """
+                kubectl set image deployment/petclinic petclinic=\$DOCKER_IMAGE:\$DOCKER_TAG -n \$K8S_NAMESPACE
+                """
             }
         }
     }
 
     post {
-        success {
-            echo ">>> Pipeline Completed Successfully!"
-        }
-        failure {
-            echo ">>> Pipeline Failed!"
+        always {
+            echo ">>> Pipeline Finished."
         }
     }
 }
