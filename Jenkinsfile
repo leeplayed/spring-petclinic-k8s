@@ -24,10 +24,10 @@ pipeline {
                         echo ">>> Docker Login..."
                         echo $DOCKER_TOKEN | docker login -u "leeplayed" --password-stdin
 
-                        echo ">>> Build Image..."
+                        echo ">>> Building Docker Image..."
                         docker build -t $DOCKER_IMAGE:$DOCKER_TAG .
 
-                        echo ">>> Push Image to Docker Hub..."
+                        echo ">>> Pushing to Docker Hub..."
                         docker push $DOCKER_IMAGE:$DOCKER_TAG
 
                         echo ">>> Docker Logout..."
@@ -39,19 +39,14 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                echo ">>> 3. Deploy to Kubernetes Cluster..."
+                echo ">>> 3. Deploying to Kubernetes..."
 
                 sh '''
                     echo ">>> Applying Kubernetes manifests..."
-                    kubectl apply -f deployment.yml
-                    kubectl apply -f service.yml
-                    kubectl apply -f ingress.yml
+                    kubectl apply -f k8s/app/
                 '''
-
-                echo ">>> Deployment triggered successfully!"
             }
         }
-
     }
 
     post {
