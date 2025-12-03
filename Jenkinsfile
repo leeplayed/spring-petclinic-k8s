@@ -11,14 +11,13 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                echo ">>> 1. Checking out code from SCM..."
                 checkout scm
             }
         }
 
         stage('Check Workspace') {
             steps {
-                echo ">>> Checking Workspace Structure..."
+                echo ">>> Checking Workspace..."
                 sh "pwd"
                 sh "ls -al"
                 sh "find . -maxdepth 3 -type f -name pom.xml"
@@ -30,7 +29,7 @@ pipeline {
                 echo ">>> 2. Maven Build..."
 
                 sh """
-                # 여기 결과 보고 cd 경로 수정 예정
+                cd spring-petclinic-k8s
                 docker run --rm \
                     -v \$PWD:/app \
                     -w /app \
@@ -39,11 +38,16 @@ pipeline {
                 """
             }
         }
-    }
 
-    post {
-        always {
-            echo ">>> Pipeline Finished."
+        stage('Build & Push Docker Image') {
+            steps {
+                echo ">>> 3. Build Docker Image..."
+                sh """
+                cd spring-petclinic-k8s
+                docker build -t \$DOCKER_IMAGE:\$DOCKER_TAG .
+                docker push \$DOCKER_IMAGE:\$DOCKER_TAG
+                """
+            }
         }
-    }
-}
+
+        stage('Deploy to
