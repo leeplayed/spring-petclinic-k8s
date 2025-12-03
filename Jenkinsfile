@@ -12,17 +12,20 @@ metadata:
 spec:
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug   # ★ debug 버전
+    image: gcr.io/kaniko-project/executor:debug
     command:
     - cat
     tty: true
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker/
+  nodeSelector:
+    jenkins-node: "true"
+  restartPolicy: Never
   volumes:
   - name: docker-config
     secret:
-      secretName: dockerhub-secret
+      secretName: dockertoken
       items:
       - key: .dockerconfigjson
         path: config.json
@@ -43,7 +46,8 @@ spec:
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'git@github.com:leeplayed/spring-petclinic-k8s.git'
+                    url: 'https://github.com/leeplayed/spring-petclinic-k8s.git',
+                    credentialsId: 'github-token'
             }
         }
 
@@ -58,14 +62,12 @@ spec:
                 container('kaniko') {
                     sh """
                     echo "===== Kaniko Build Start ====="
-
                     /kaniko/executor \
                         --context `pwd` \
                         --dockerfile Dockerfile \
                         --destination ${FULL_IMAGE} \
                         --snapshotMode=redo \
                         --cache=true
-
                     echo "===== Kaniko Build End ====="
                     """
                 }
@@ -80,8 +82,8 @@ spec:
                 kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
 
                 kubectl set image deployment/petclinic petclinic=${FULL_IMAGE} -n ${K8S_NAMESPACE}
-
                 kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE}
+                echo "===== Kubernetes Deploy Complete ====="
                 """
             }
         }
