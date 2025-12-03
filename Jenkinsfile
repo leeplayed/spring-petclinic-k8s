@@ -10,8 +10,6 @@ metadata:
   labels:
     jenkins: kaniko-build
 spec:
-  nodeSelector:
-    jenkins-node: "true"
   containers:
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
@@ -103,14 +101,14 @@ spec:
             steps {
                 container('kaniko') {
                     sh """
-                    echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
-                    /kaniko/executor \\
-                      --context \$WORKSPACE \\
-                      --dockerfile Dockerfile \\
-                      --destination ${REGISTRY}/${IMAGE}:${TAG} \\
-                      --snapshot-mode=redo \\
-                      --cache=true
-                    """
+echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
+/kaniko/executor \\
+  --context \$WORKSPACE \\
+  --dockerfile Dockerfile \\
+  --destination ${REGISTRY}/${IMAGE}:${TAG} \\
+  --snapshot-mode=redo \\
+  --cache=true
+"""
                 }
             }
         }
@@ -119,11 +117,12 @@ spec:
             steps {
                 container('kubectl') {
                     sh """
-                    echo "🔄 Updating Deployment Image..."
-                    kubectl set image deployment/petclinic petclinic-container=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
-                    echo "⏳ Waiting for rollout..."
-                    kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
-                    """
+echo "🔄 Updating Deployment Image..."
+kubectl set image deployment/petclinic petclinic-container=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
+
+echo "⏳ Waiting for rollout..."
+kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
+"""
                 }
             }
         }
