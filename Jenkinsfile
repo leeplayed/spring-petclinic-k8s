@@ -13,8 +13,8 @@ spec:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     args:
-    - "--dockerfile=Dockerfile"
-    - "--context=./"
+    - "--dockerfile=/workspace/Dockerfile"
+    - "--context=/workspace"
     - "--destination=leeplayed/spring-petclinic:latest"
     - "--destination=leeplayed/spring-petclinic:${BUILD_NUMBER}"
     volumeMounts:
@@ -60,18 +60,3 @@ spec:
         stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
-                    sh '''
-                    echo ">>> Deploying to K8s..."
-                    kubectl -n app apply -f k8s/app/service.yaml
-                    kubectl -n app apply -f k8s/app/ingress.yaml
-                    
-                    kubectl -n app set image deployment/petclinic \
-                        petclinic=${DOCKER_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
-
-                    kubectl -n app rollout status deployment/petclinic
-                    '''
-                }
-            }
-        }
-    }
-}
