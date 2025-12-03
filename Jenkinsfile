@@ -40,9 +40,6 @@ spec:
       image: maven:3.9.6-eclipse-temurin-17
       command: ["cat"]
       tty: true
-      env:
-        - name: JAVA_HOME
-          value: /usr/local/openjdk-17
       volumeMounts:
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
