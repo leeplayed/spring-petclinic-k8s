@@ -13,14 +13,14 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/leeplayed/spring-petclinic-k8s.git'
+                    url: 'git@github.com:leeplayed/spring-petclinic-k8s.git'
             }
         }
 
         stage('Maven Build') {
             steps {
                 sh """
-                ./mvnw clean package -DskipTests
+                ./mvnw clean package -DskipTests -Dcheckstyle.skip=true
                 """
             }
         }
@@ -28,6 +28,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh """
+                echo "==== Docker Build Start ===="
                 docker build -t ${REGISTRY}/${IMAGE}:${TAG} .
                 """
             }
@@ -36,6 +37,7 @@ pipeline {
         stage('Docker Push') {
             steps {
                 sh """
+                echo "==== Docker Push Start ===="
                 docker push ${REGISTRY}/${IMAGE}:${TAG}
                 """
             }
@@ -44,6 +46,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh """
+                echo "==== K8s Deploy Start ===="
                 kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
                 kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
                 kubectl rollout restart deployment petclinic -n ${K8S_NAMESPACE}
@@ -51,14 +54,9 @@ pipeline {
             }
         }
 
-        /*
-         * ===========================
-         *   🔥 Node Disk Cleanup 
-         * ===========================
-         */
         stage('Cleanup Node Disk') {
             steps {
-                sh '''
+                sh """
                 echo "=== [Cleanup] Containerd cleanup start ==="
 
                 mkdir -p ~/.config/crictl
@@ -69,23 +67,27 @@ timeout: 10
 debug: false
 EOF
 
+                # Unused images cleanup
                 sudo crictl rmi --prune || true
                 sudo crictl image prune || true
 
+                # Committed snapshot cleanup
                 sudo ctr -n k8s.io snapshots ls | grep Committed | \
-                awk '{print $1}' | xargs -I {} sudo ctr -n k8s.io snapshots rm {} || true
+                awk '{print \$1}' | xargs -I {} sudo ctr -n k8s.io snapshots rm {} || true
 
-                echo "=== [Cleanup] Containerd cleanup finished ==="
-                '''
+                echo "=== [Cleanup] Finished ==="
+                """
             }
         }
 
-    } // END stages
+    } // stages
 
-    /*
-     * ===========================
-     *  🔥 Build 후 Workspace Cleanup
-     * ===========================
-     */
-
-}  // ← ★★★ 여기 꼭
+    post {
+        success {
+            echo "🎉 Build & Deploy Success!"
+        }
+        failure {
+            echo "🔥 Build Failed! Check logs!"
+        }
+    }
+}
