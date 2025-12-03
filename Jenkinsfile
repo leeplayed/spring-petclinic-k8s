@@ -1,41 +1,82 @@
 pipeline {
     agent {
         kubernetes {
-            yaml '''
+            yaml """
 apiVersion: v1
 kind: Pod
 metadata:
   labels:
     app: jenkins-agent
 spec:
-  serviceAccountName: default
   containers:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     args:
-    - "--dockerfile=Dockerfile"
-    - "--context=./"
+    - "--dockerfile=/workspace/Dockerfile"
+    - "--context=/workspace/"
     - "--destination=leeplayed/spring-petclinic:latest"
     - "--destination=leeplayed/spring-petclinic:${BUILD_NUMBER}"
     volumeMounts:
     - name: kaniko-secret
-      mountPath: /kaniko/.docker
-
+      mountPath: /kaniko/.docker/
+    - name: workspace-volume
+      mountPath: /workspace
   - name: kubectl
     image: bitnami/kubectl:latest
     command: ["cat"]
     tty: true
-
-  # 🔥 JENKINS AGENT 필수 컨테이너
-  - name: jnlp
-    image: jenkins/inbound-agent:latest
-    args: ["$(JENKINS_SECRET)", "$(JENKINS_NAME)"]
-    tty: true
-
   volumes:
   - name: kaniko-secret
     secret:
       secretName: dockerhub-config
-'''
+  - name: workspace-volume
+    emptyDir: {}
+"""
         }
     }
+
+    environment {
+        APP_NAMESPACE   = 'app'
+        APP_NAME        = 'petclinic'
+        IMAGE_NAME      = 'spring-petclinic'
+        DOCKER_USER     = 'leeplayed'
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                container('kubectl') {
+                    sh 'cp -R /home/jenkins/agent/workspace/* /workspace/'
+                }
+                git credentialsId: 'github-ssh-key',
+                    url: 'git@github.com:leeplayed/spring-petclinic-k8s.git',
+                    branch: 'main'
+            }
+        }
+
+        stage('Build & Push Image (Kaniko)') {
+            steps {
+                container('kaniko') {
+                    sh 'echo ">>> Building & pushing Docker image using Kaniko..."'
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                container('kubectl') {
+                    sh """
+                    kubectl -n app apply -f k8s/app/service.yaml
+                    kubectl -n app apply -f k8s/app/ingress.yaml
+                    
+                    kubectl -n app set image deployment/petclinic \
+                        petclinic=${DOCKER_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+
+                    kubectl -n app rollout status deployment/petclinic
+                    """
+                }
+            }
+        }
+    }
+}
