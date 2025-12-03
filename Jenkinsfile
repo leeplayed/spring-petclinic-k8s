@@ -1,48 +1,24 @@
 pipeline {
+
     agent {
         kubernetes {
-            yaml '''
-apiVersion: v1
-kind: Pod
-metadata:
-  labels:
-    app: jenkins-agent
-spec:
-  serviceAccountName: default
-  containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    command:
-      - cat
-    tty: true
-    volumeMounts:
-      - name: kaniko-secret
-        mountPath: /kaniko/.docker
-  - name: kubectl
-    image: bitnami/kubectl:latest
-    command:
-      - cat
-    tty: true
-  volumes:
-  - name: kaniko-secret
-    secret:
-      secretName: dockerhub-config
-'''
-            defaultContainer 'kubectl'
+            inheritFrom 'kaniko-agent'
         }
     }
 
     environment {
-        APP_NAMESPACE   = 'app'
-        APP_NAME        = 'petclinic'
-        IMAGE_NAME      = 'spring-petclinic'
-        DOCKER_USER     = 'leeplayed'
+        APP_NAMESPACE = 'app'
+        APP_NAME      = 'petclinic'
+        IMAGE_NAME    = 'spring-petclinic'
+        DOCKER_USER   = 'leeplayed'
+        GIT_CRED_ID   = 'github-ssh-key'    // GitHub SSH Key
     }
 
     stages {
+
         stage('Checkout Code') {
             steps {
-                git credentialsId: 'github-ssh-key',
+                git credentialsId: "${GIT_CRED_ID}",
                     url: 'git@github.com:leeplayed/spring-petclinic-k8s.git',
                     branch: 'main'
             }
@@ -55,10 +31,10 @@ spec:
                     echo ">>> Building & pushing Docker image using Kaniko..."
 
                     /kaniko/executor \
-                      --dockerfile=Dockerfile \
-                      --context=`pwd` \
-                      --destination=${DOCKER_USER}/${IMAGE_NAME}:latest \
-                      --destination=${DOCKER_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                        --dockerfile=./Dockerfile \
+                        --context=$(pwd) \
+                        --destination=${DOCKER_USER}/${IMAGE_NAME}:latest \
+                        --destination=${DOCKER_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
                     '''
                 }
             }
@@ -68,15 +44,18 @@ spec:
             steps {
                 container('kubectl') {
                     sh '''
-                    echo ">>> Deploying to Kubernetes..."
+                    echo ">>> Deploying to Kubernetes ..."
 
-                    kubectl -n app apply -f k8s/app/service.yaml
-                    kubectl -n app apply -f k8s/app/ingress.yaml
+                    # Service & Ingress 적용
+                    kubectl -n ${APP_NAMESPACE} apply -f k8s/app/service.yaml
+                    kubectl -n ${APP_NAMESPACE} apply -f k8s/app/ingress.yaml
 
-                    kubectl -n app set image deployment/petclinic \
-                      petclinic=${DOCKER_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    # 이미지 업데이트
+                    kubectl -n ${APP_NAMESPACE} set image deployment/${APP_NAME} \
+                        ${APP_NAME}=${DOCKER_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
 
-                    kubectl -n app rollout status deployment/petclinic
+                    # 롤아웃 확인
+                    kubectl -n ${APP_NAMESPACE} rollout status deployment/${APP_NAME}
                     '''
                 }
             }
