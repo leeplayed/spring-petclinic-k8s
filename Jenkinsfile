@@ -2,7 +2,7 @@ pipeline {
     agent {
         kubernetes {
             label 'kaniko-build'
-            defaultContainer 'kaniko'
+            defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
 kind: Pod
@@ -19,6 +19,16 @@ spec:
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker/
+  - name: jnlp
+    image: jenkins/inbound-agent:3345.v03dee9b_f88fc-1
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+    volumeMounts:
+    - name: workspace-volume
+      mountPath: /home/jenkins/agent
+      readOnly: false
   nodeSelector:
     jenkins-node: "true"
   restartPolicy: Never
@@ -29,6 +39,9 @@ spec:
       items:
       - key: .dockerconfigjson
         path: config.json
+  - emptyDir:
+      medium: ""
+    name: workspace-volume
 """
         }
     }
@@ -45,15 +58,19 @@ spec:
 
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/leeplayed/spring-petclinic-k8s.git',
-                    credentialsId: 'github-token'
+                container('jnlp') {
+                    git branch: 'main',
+                        url: 'https://github.com/leeplayed/spring-petclinic-k8s.git',
+                        credentialsId: 'github-token'
+                }
             }
         }
 
         stage('Maven Build') {
             steps {
-                sh "./mvnw clean package -DskipTests -Dcheckstyle.skip=true"
+                container('jnlp') {
+                    sh "./mvnw clean package -DskipTests -Dcheckstyle.skip=true"
+                }
             }
         }
 
@@ -76,15 +93,17 @@ spec:
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh """
-                echo "===== Kubernetes Deploy Start ====="
-                kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
-                kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
+                container('jnlp') {
+                    sh """
+                    echo "===== Kubernetes Deploy Start ====="
+                    kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
+                    kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
 
-                kubectl set image deployment/petclinic petclinic=${FULL_IMAGE} -n ${K8S_NAMESPACE}
-                kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE}
-                echo "===== Kubernetes Deploy Complete ====="
-                """
+                    kubectl set image deployment/petclinic petclinic=${FULL_IMAGE} -n ${K8S_NAMESPACE}
+                    kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE}
+                    echo "===== Kubernetes Deploy Complete ====="
+                    """
+                }
             }
         }
     }
