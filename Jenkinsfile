@@ -9,19 +9,19 @@ pipeline {
         DOCKER_USER     = 'leeplayed'
 
         // ---- Credentials ----
-        GIT_CRED_ID     = 'github-ssh-key'
+        GIT_CRED_ID     = 'github-https-token'   // ★ HTTPS 전용 Credential로 반드시 변경
         DOCKER_TOKEN_ID = 'dockertoken'
     }
 
     stages {
 
         /*----------------------------------
-         * 1. 소스코드 체크아웃
+         * 1. 소스코드 체크아웃(HTTPS + PAT)
          *----------------------------------*/
         stage('Checkout Code') {
             steps {
                 script {
-                    echo '>>> 1. Checking out code...'
+                    echo '>>> 1. Checking out code (HTTPS)...'
                 }
 
                 git credentialsId: "${GIT_CRED_ID}",
