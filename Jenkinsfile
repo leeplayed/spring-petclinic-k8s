@@ -34,11 +34,12 @@ spec:
           mountPath: "/home/jenkins/agent/workspace/"
 
     # --------------------------
-    # 3) Kubectl 컨테이너
+    # 3) Kubectl 컨테이너 (🔥 freeze 문제의 원인 → FIX)
     # --------------------------
     - name: kubectl
       image: bitnami/kubectl:latest
-      command: ["cat"]
+      command: ["/bin/sh"]
+      args: ["-c", "sleep infinity"]
       tty: true
       volumeMounts:
         - name: workspace-volume
