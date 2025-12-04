@@ -11,7 +11,6 @@ metadata:
     jenkins: kaniko-build
 spec:
   serviceAccountName: jenkins
-
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -21,9 +20,9 @@ spec:
       effect: "NoSchedule"
 
   containers:
-    # --------------------------
-    # 1) Kaniko
-    # --------------------------
+    # =======================
+    # ① Kaniko
+    # =======================
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
       command: ["/bin/sh"]
@@ -34,14 +33,14 @@ spec:
       volumeMounts:
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
-          subPath: .dockerconfigjson
+          subPath: config.json
           readOnly: true
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
 
-    # --------------------------
-    # 2) Maven
-    # --------------------------
+    # =======================
+    # ② Maven
+    # =======================
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
       command: ["/bin/sh"]
@@ -51,12 +50,12 @@ spec:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
 
-    # --------------------------
-    # 3) Kubectl (중요!)
-    #    쉘이 있는 안정적인 이미지 사용
-    # --------------------------
+    # =======================
+    # ③ Kubectl
+    # 우리가 직접 만든 이미지 사용!!
+    # =======================
     - name: kubectl
-      image: lachlanevenson/k8s-kubectl:v1.28.7
+      image: leeplayed/kubectl:1.28      # ← 확정
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
@@ -64,9 +63,9 @@ spec:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
 
-    # --------------------------
-    # 4) JNLP Agent
-    # --------------------------
+    # =======================
+    # ④ JNLP Agent
+    # =======================
     - name: jnlp
       image: jenkins/inbound-agent:latest
       volumeMounts:
@@ -76,7 +75,7 @@ spec:
   volumes:
     - name: docker-config
       secret:
-        secretName: "dockertoken"
+        secretName: dockertoken
         items:
           - key: ".dockerconfigjson"
             path: config.json
