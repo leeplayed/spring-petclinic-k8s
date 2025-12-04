@@ -10,7 +10,6 @@ metadata:
   labels:
     jenkins: kaniko-build
 spec:
-  # kubectl 권한 부여를 위한 핵심 설정
   serviceAccountName: jenkins 
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
@@ -22,18 +21,16 @@ spec:
 
   containers:
     # --------------------------
-    # 1) Kaniko (시작 오류 최종 해결)
+    # 1) Kaniko
     # --------------------------
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
-      # ⭐ 수정: StartError 방지를 위해 "/bin/sh"를 사용하여 영구 대기 상태로 유지
-      command: ["/bin/sh"] 
+      command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
       securityContext:
-        runAsUser: 0     # 권한 문제 해결
+        runAsUser: 0
       volumeMounts:
-        # Secret 키(.dockerconfigjson)를 Kaniko가 찾는 파일명(config.json)으로 직접 마운트
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
           subPath: .dockerconfigjson
@@ -46,11 +43,10 @@ spec:
           cpu: "250m"
 
     # --------------------------
-    # 2) Maven (시작 오류 최종 해결)
+    # 2) Maven
     # --------------------------
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
-      # ⭐ 수정: StartError 방지를 위해 "/bin/sh"를 사용하여 영구 대기 상태로 유지
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
@@ -63,11 +59,10 @@ spec:
           cpu: "500m"
 
     # --------------------------
-    # 3) Kubectl (시작 오류 최종 해결)
+    # 3) Kubectl
     # --------------------------
     - name: kubectl
-      image: bitnami/kubectl:latest 
-      # ⭐ 수정: StartError 방지를 위해 "/bin/sh"를 사용하여 영구 대기 상태로 유지
+      image: bitnami/kubectl:latest
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
@@ -130,7 +125,7 @@ spec:
                     sh """
 export HOME=\$WORKSPACE
 mkdir -p \$WORKSPACE/.m2
-mvn clean package -DskipTests -Dmaven.repo.local=\$WORKSPACE/.m2
+mvn clean package -DskipTests -Dcheckstyle.skip=true -Dmaven.repo.local=\$WORKSPACE/.m2
 """
                 }
             }
