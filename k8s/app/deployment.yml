@@ -16,8 +16,8 @@ spec:
         app: petclinic
     spec:
       containers:
-        - name: petclinic-container     # ← 변경 완료
-          image: leeplayed/spring-petclinic:0
+        - name: petclinic-container     # ★ Jenkins와 이름 동일
+          image: leeplayed/spring-petclinic:placeholder  # ★ 초기값은 아무거나
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
