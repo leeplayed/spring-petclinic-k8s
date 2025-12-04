@@ -1,7 +1,6 @@
 pipeline {
     agent {
         kubernetes {
-            label 'kaniko-build'
             defaultContainer 'jnlp'
             yaml """
 apiVersion: v1
@@ -46,7 +45,7 @@ spec:
           mountPath: "/home/jenkins/agent/workspace/"
 
     # --------------------------
-    # 4) JNLP 컨테이너 (기본)
+    # 4) JNLP 컨테이너
     # --------------------------
     - name: jnlp
       image: jenkins/inbound-agent:latest
@@ -55,7 +54,7 @@ spec:
           mountPath: "/home/jenkins/agent/workspace/"
 
   volumes:
-    # 🔥 1) DockerHub 로그인 Secret (필수)
+    # 🔥 DockerHub 로그인 Secret
     - name: docker-config
       secret:
         secretName: "dockertoken"
@@ -63,7 +62,7 @@ spec:
         - key: .dockerconfigjson
           path: config.json
 
-    # 🔥 2) Jenkins workspace 공유용 볼륨 (필수)
+    # 🔥 Workspace 공유 볼륨
     - name: workspace-volume
       emptyDir: {}
 """
@@ -120,7 +119,7 @@ echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
             steps {
                 container('kubectl') {
                     sh """
-kubectl set image deployment/petclinic petclinic-container=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
+kubectl set image deployment/petclinic workload=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
 kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
 """
                 }
