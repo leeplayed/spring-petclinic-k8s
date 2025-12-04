@@ -6,41 +6,19 @@ pipeline {
             yaml """
 apiVersion: v1
 kind: Pod
-metadata:
-  labels:
-    jenkins: kaniko-build
 spec:
-  tolerations:
-    - key: "node-role.kubernetes.io/control-plane"
-      operator: "Exists"
-      effect: "NoSchedule"
-    - key: "node.kubernetes.io/disk-pressure"
-      operator: "Exists"
-      effect: "NoSchedule"
-
   containers:
-
-    # -------------------------------
-    # 1. KANIKO 컨테이너
-    # -------------------------------
     - name: kaniko
-      image: gcr.io/kaniko-project/executor:latest
-      command: ["/busybox/sh"]
-      args: ["-c", "while true; do sleep 3600; done"]
-      securityContext:
-        runAsUser: 0    # 루트 권한 — 권한 오류 방지
+      image: gcr.io/kaniko-project/executor:debug
+      command: ["cat"]
       tty: true
       volumeMounts:
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
-          readOnly: true
-          subPath: .dockerconfigjson
+          subPath: config.json
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
 
-    # -------------------------------
-    # 2. MAVEN 컨테이너
-    # -------------------------------
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
       command: ["cat"]
@@ -49,9 +27,6 @@ spec:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
 
-    # -------------------------------
-    # 3. KUBECTL 컨테이너
-    # -------------------------------
     - name: kubectl
       image: bitnami/kubectl:latest
       command: ["cat"]
@@ -60,23 +35,18 @@ spec:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
 
-    # -------------------------------
-    # 4. JNLP 컨테이너
-    # -------------------------------
     - name: jnlp
       image: jenkins/inbound-agent:latest
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "100m"
-
   volumes:
     - name: docker-config
       secret:
-        secretName: dockertoken
+        secretName: "dockertoken"
+        items:
+        - key: .dockerconfigjson
+          path: config.json
     - name: workspace-volume
       emptyDir: {}
 """
@@ -118,7 +88,6 @@ mvn clean package -DskipTests -Dcheckstyle.skip=true -Dmaven.repo.local=\$WORKSP
                     sh """
 echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
 
-# Kaniko 실행
 /kaniko/executor \
   --context \$WORKSPACE \
   --dockerfile Dockerfile \
@@ -134,10 +103,7 @@ echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
             steps {
                 container('kubectl') {
                     sh """
-echo "🔄 Updating Deployment Image..."
 kubectl set image deployment/petclinic petclinic-container=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
-
-echo "⏳ Waiting for rollout..."
 kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
 """
                 }
@@ -148,7 +114,6 @@ kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
     post {
         success {
             echo "🎉 SUCCESS: Build & Deploy Completed!"
-            echo "➡️ Image: ${REGISTRY}/${IMAGE}:${TAG}"
         }
         failure {
             echo "🔥 FAILED: Check the Jenkins logs!"
