@@ -19,21 +19,28 @@ spec:
       effect: "NoSchedule"
 
   containers:
-    # === Kaniko (lightweight version) ===
+
+    # -------------------------------
+    # 1. KANIKO 컨테이너
+    # -------------------------------
     - name: kaniko
       image: gcr.io/kaniko-project/executor:latest
-      command: ["cat"]
-      tty: true
+      command: ["/busybox/sh"]
+      args: ["-c", "while true; do sleep 3600; done"]
       securityContext:
-        runAsUser: 0
+        runAsUser: 0    # 루트 권한 — 권한 오류 방지
+      tty: true
       volumeMounts:
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
-          subPath: config.json
           readOnly: true
+          subPath: .dockerconfigjson
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
 
+    # -------------------------------
+    # 2. MAVEN 컨테이너
+    # -------------------------------
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
       command: ["cat"]
@@ -42,6 +49,9 @@ spec:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
 
+    # -------------------------------
+    # 3. KUBECTL 컨테이너
+    # -------------------------------
     - name: kubectl
       image: bitnami/kubectl:latest
       command: ["cat"]
@@ -50,6 +60,9 @@ spec:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
 
+    # -------------------------------
+    # 4. JNLP 컨테이너
+    # -------------------------------
     - name: jnlp
       image: jenkins/inbound-agent:latest
       volumeMounts:
@@ -59,15 +72,11 @@ spec:
         requests:
           memory: "256Mi"
           cpu: "100m"
-          ephemeral-storage: "1Gi"
 
   volumes:
     - name: docker-config
       secret:
-        secretName: "dockertoken"
-        items:
-          - key: ".dockerconfigjson"
-            path: config.json
+        secretName: dockertoken
     - name: workspace-volume
       emptyDir: {}
 """
@@ -109,6 +118,7 @@ mvn clean package -DskipTests -Dcheckstyle.skip=true -Dmaven.repo.local=\$WORKSP
                     sh """
 echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
 
+# Kaniko 실행
 /kaniko/executor \
   --context \$WORKSPACE \
   --dockerfile Dockerfile \
