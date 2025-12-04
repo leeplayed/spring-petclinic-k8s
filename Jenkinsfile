@@ -117,16 +117,16 @@ spec:
 
         stage('Maven Build') {
             steps {
-                // maven 컨테이너에서 빌드 실행
-                container('maven') {
-                    // MAVEN_OPTS 환경 변수를 사용하는 대신, 단일 명령으로 실행하고 
-                    // 로컬 리포지토리 경로는 인자로 전달합니다.
-                    sh """
-# Maven 캐시 디렉토리를 생성하고, -D 옵션을 사용하여 로컬 리포지토리 경로를 Maven에 직접 전달합니다.
-# 이전에 발생했던 "Unknown lifecycle phase" 오류를 해결합니다.
+                // Groovy의 withEnv 블록을 사용하여 MAVEN_OPTS를 정확하게 설정합니다.
+                withEnv(["MAVEN_OPTS=-Dmaven.repo.local=${WORKSPACE}/.m2"]) {
+                    container('maven') {
+                        sh """
+# Maven 캐시 디렉토리를 생성합니다. MAVEN_OPTS는 이미 상위 블록에서 설정됨.
 mkdir -p \$WORKSPACE/.m2
-./mvnw clean package -DskipTests -Dcheckstyle.skip=true -Dmaven.repo.local=\$WORKSPACE/.m2
+# Maven 빌드 실행. (MAVEN_OPTS에 설정된 로컬 리포지토리를 사용)
+./mvnw clean package -DskipTests -Dcheckstyle.skip=true
 """
+                    }
                 }
             }
         }
