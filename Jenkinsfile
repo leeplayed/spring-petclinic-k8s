@@ -10,7 +10,8 @@ metadata:
   labels:
     jenkins: kaniko-build
 spec:
-  serviceAccountName: jenkins 
+  serviceAccountName: jenkins
+
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -33,13 +34,10 @@ spec:
       volumeMounts:
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
-          subPath: config.json    # ← 핵심 수정!
+          subPath: .dockerconfigjson
+          readOnly: true
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "250m"
 
     # --------------------------
     # 2) Maven
@@ -52,26 +50,19 @@ spec:
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
-      resources:
-        requests:
-          memory: "512Mi"
-          cpu: "500m"
 
     # --------------------------
-    # 3) Kubectl
+    # 3) Kubectl (중요!)
+    #    쉘이 있는 안정적인 이미지 사용
     # --------------------------
     - name: kubectl
-      image: bitnami/kubectl:latest
+      image: lachlanevenson/k8s-kubectl:v1.28.7
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
-      resources:
-        requests:
-          memory: "128Mi"
-          cpu: "100m"
 
     # --------------------------
     # 4) JNLP Agent
@@ -81,11 +72,6 @@ spec:
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
-      resources:
-        requests:
-          memory: "256Mi"
-          cpu: "100m"
-          ephemeral-storage: "1Gi"
 
   volumes:
     - name: docker-config
@@ -93,7 +79,7 @@ spec:
         secretName: "dockertoken"
         items:
           - key: ".dockerconfigjson"
-            path: config.json   # ← 핵심 수정! (subPath와 일치)
+            path: config.json
 
     - name: workspace-volume
       emptyDir: {}
@@ -124,7 +110,7 @@ spec:
                     sh """
 export HOME=\$WORKSPACE
 mkdir -p \$WORKSPACE/.m2
-mvn clean package -DskipTests -Dcheckstyle.skip=true -Dmaven.repo.local=\$WORKSPACE/.m2
+mvn clean package -DskipTests -Dmaven.repo.local=\$WORKSPACE/.m2
 """
                 }
             }
@@ -136,11 +122,11 @@ mvn clean package -DskipTests -Dcheckstyle.skip=true -Dmaven.repo.local=\$WORKSP
                     sh """
 echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
 
-/kaniko/executor \\
-  --context \$WORKSPACE \\
-  --dockerfile Dockerfile \\
-  --destination ${REGISTRY}/${IMAGE}:${TAG} \\
-  --snapshot-mode=redo \\
+/kaniko/executor \
+  --context \$WORKSPACE \
+  --dockerfile Dockerfile \
+  --destination ${REGISTRY}/${IMAGE}:${TAG} \
+  --snapshot-mode=redo \
   --cache=true
 """
                 }
