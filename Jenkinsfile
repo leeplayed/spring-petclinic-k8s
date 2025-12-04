@@ -10,6 +10,7 @@ metadata:
   labels:
     jenkins: kaniko-build
 spec:
+  # kubectl 권한 부여를 위한 핵심 설정
   serviceAccountName: jenkins 
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
@@ -20,17 +21,19 @@ spec:
       effect: "NoSchedule"
 
   containers:
-    # ---------------------------------------------------------
-    # 1) Kaniko 컨테이너
-    # ---------------------------------------------------------
+    # --------------------------
+    # 1) Kaniko (시작 오류 최종 해결)
+    # --------------------------
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
-      command: ["/bin/sh"]
+      # ⭐ 수정: StartError 방지를 위해 "/bin/sh"를 사용하여 영구 대기 상태로 유지
+      command: ["/bin/sh"] 
       args: ["-c", "sleep infinity"]
       tty: true
       securityContext:
-        runAsUser: 0
+        runAsUser: 0     # 권한 문제 해결
       volumeMounts:
+        # Secret 키(.dockerconfigjson)를 Kaniko가 찾는 파일명(config.json)으로 직접 마운트
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
           subPath: .dockerconfigjson
@@ -42,12 +45,14 @@ spec:
           memory: "256Mi"
           cpu: "250m"
 
-    # ---------------------------------------------------------
-    # 2) Maven 컨테이너
-    # ---------------------------------------------------------
+    # --------------------------
+    # 2) Maven (시작 오류 최종 해결)
+    # --------------------------
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
-      command: ["cat"]
+      # ⭐ 수정: StartError 방지를 위해 "/bin/sh"를 사용하여 영구 대기 상태로 유지
+      command: ["/bin/sh"]
+      args: ["-c", "sleep infinity"]
       tty: true
       volumeMounts:
         - name: workspace-volume
@@ -57,11 +62,14 @@ spec:
           memory: "512Mi"
           cpu: "500m"
 
-    # ---------------------------------------------------------
-    # 3) Kubectl 컨테이너 (🔥 해결방법 1 적용됨)
-    # ---------------------------------------------------------
+    # --------------------------
+    # 3) Kubectl (시작 오류 최종 해결)
+    # --------------------------
     - name: kubectl
-      image: registry.k8s.io/kubectl:v1.28.0
+      image: bitnami/kubectl:latest 
+      # ⭐ 수정: StartError 방지를 위해 "/bin/sh"를 사용하여 영구 대기 상태로 유지
+      command: ["/bin/sh"]
+      args: ["-c", "sleep infinity"]
       tty: true
       volumeMounts:
         - name: workspace-volume
@@ -71,9 +79,9 @@ spec:
           memory: "128Mi"
           cpu: "100m"
 
-    # ---------------------------------------------------------
-    # 4) JNLP 에이전트
-    # ---------------------------------------------------------
+    # --------------------------
+    # 4) JNLP Agent
+    # --------------------------
     - name: jnlp
       image: jenkins/inbound-agent:latest
       volumeMounts:
