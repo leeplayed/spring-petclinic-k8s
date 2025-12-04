@@ -120,4 +120,20 @@ echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
             steps {
                 container('kubectl') {
                     sh """
-kubectl set image deployment/petclinic petclinic-container=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S
+kubectl set image deployment/petclinic petclinic-container=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
+kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
+"""
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "🎉 SUCCESS: Build & Deploy Completed!"
+        }
+        failure {
+            echo "🔥 FAILED: Check the Jenkins logs!"
+        }
+    }
+}
