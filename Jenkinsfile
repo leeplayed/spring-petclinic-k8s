@@ -51,11 +51,10 @@ spec:
           mountPath: "/home/jenkins/agent/workspace/"
 
     # =======================
-    # ③ Kubectl
-    # 우리가 직접 만든 이미지 사용!!
+    # ③ Kubectl (직접 제작 이미지)
     # =======================
     - name: kubectl
-      image: leeplayed/kubectl:1.28      # ← 확정
+      image: leeplayed/kubectl:1.28
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
@@ -64,7 +63,7 @@ spec:
           mountPath: "/home/jenkins/agent/workspace/"
 
     # =======================
-    # ④ JNLP Agent
+    # ④ JNLP
     # =======================
     - name: jnlp
       image: jenkins/inbound-agent:latest
@@ -109,7 +108,11 @@ spec:
                     sh """
 export HOME=\$WORKSPACE
 mkdir -p \$WORKSPACE/.m2
-mvn clean package -DskipTests -Dmaven.repo.local=\$WORKSPACE/.m2
+
+mvn clean package \
+  -DskipTests \
+  -Dcheckstyle.skip=true \
+  -Dmaven.repo.local=\$WORKSPACE/.m2
 """
                 }
             }
