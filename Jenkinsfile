@@ -33,8 +33,7 @@ spec:
       volumeMounts:
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
-          subPath: .dockerconfigjson
-          readOnly: true
+          subPath: config.json    # ← 핵심 수정!
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
       resources:
@@ -94,7 +93,7 @@ spec:
         secretName: "dockertoken"
         items:
           - key: ".dockerconfigjson"
-            path: config.json
+            path: config.json   # ← 핵심 수정! (subPath와 일치)
 
     - name: workspace-volume
       emptyDir: {}
