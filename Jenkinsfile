@@ -86,7 +86,7 @@ spec:
     # 도커 레지스트리 인증 정보 (Secret으로 정의되어 있어야 함)
     - name: docker-config
       secret:
-        secretName: dockertoken
+        secretName: "dockertoken"
     # 컨테이너 간 파일 공유를 위한 임시 디렉토리 볼륨
     - name: workspace-volume
       emptyDir: {}
@@ -117,16 +117,22 @@ spec:
 
         stage('Maven Build') {
             steps {
-                // Groovy의 withEnv 블록을 사용하여 MAVEN_OPTS를 정확하게 설정합니다.
-                withEnv(["MAVEN_OPTS=-Dmaven.repo.local=${WORKSPACE}/.m2"]) {
-                    container('maven') {
-                        sh """
-# Maven 캐시 디렉토리를 생성합니다. MAVEN_OPTS는 이미 상위 블록에서 설정됨.
-mkdir -p \$WORKSPACE/.m2
-# Maven 빌드 실행. (MAVEN_OPTS에 설정된 로컬 리포지토리를 사용)
-./mvnw clean package -DskipTests -Dcheckstyle.skip=true
+                container('maven') {
+                    sh """
+# 1. Maven 캐시 디렉토리를 생성합니다.
+mkdir -p \$WORKSPACE/.m2/repository
+
+# 2. 로컬 리포지토리 경로를 지정하는 settings.xml을 동적으로 생성합니다.
+# 이 방법은 셸 변수 확장 오류를 완전히 회피합니다.
+cat > \$WORKSPACE/settings.xml <<EOF
+<settings>
+  <localRepository>\$WORKSPACE/.m2/repository</localRepository>
+</settings>
+EOF
+
+# 3. Maven 빌드 실행 시, -s 옵션으로 settings.xml 경로를 명시하고 순수한 목표(goals)만 전달합니다.
+./mvnw clean package -DskipTests -Dcheckstyle.skip=true -s \$WORKSPACE/settings.xml
 """
-                    }
                 }
             }
         }
