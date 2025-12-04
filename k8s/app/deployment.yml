@@ -16,7 +16,7 @@ spec:
         app: petclinic
     spec:
       containers:
-        - name: petclinic
+        - name: petclinic-container     # ← 변경 완료
           image: leeplayed/spring-petclinic:0
           imagePullPolicy: Always
           ports:
