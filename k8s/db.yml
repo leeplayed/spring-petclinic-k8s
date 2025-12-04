@@ -1,8 +1,8 @@
----
 apiVersion: v1
 kind: Secret
 metadata:
   name: demo-db
+  namespace: app  # [중요] 앱과 같은 네임스페이스
 type: servicebinding.io/postgresql
 stringData:
   type: "postgresql"
@@ -14,10 +14,27 @@ stringData:
   password: "pass"
 
 ---
+# 1. 데이터 영구 저장을 위한 PVC (볼륨 요청)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: app  # [중요]
+  labels:
+    app: demo-db
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi # 필요에 따라 용량 조절
+
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: demo-db
+  namespace: app  # [중요]
 spec:
   ports:
     - port: 5432
@@ -29,6 +46,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: demo-db
+  namespace: app  # [중요]
   labels:
     app: demo-db
 spec:
@@ -41,8 +59,12 @@ spec:
         app: demo-db
     spec:
       containers:
-        - image: postgres:18.1
+        - image: postgres:15
           name: postgresql
+          # 2. 볼륨 마운트 경로 설정
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
           env:
             - name: POSTGRES_USER
               valueFrom:
@@ -71,3 +93,8 @@ spec:
           startupProbe:
             tcpSocket:
               port: postgresql
+      # 3. 실제 볼륨 연결
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc

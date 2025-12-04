@@ -16,15 +16,41 @@ spec:
         app: petclinic
     spec:
       containers:
-        - name: petclinic-container     # ★ Jenkins와 이름 동일
-          image: leeplayed/spring-petclinic:placeholder  # ★ 초기값은 아무거나
+        - name: petclinic-container
+          image: leeplayed/spring-petclinic:placeholder
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          
+          # [수정 1] Spring Boot 표준 환경변수 이름으로 변경
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "postgres"
+            - name: SPRING_DATASOURCE_URL  # 변경됨 (기존: POSTGRES_URL)
+              value: "jdbc:postgresql://demo-db:5432/petclinic"
+            - name: SPRING_DATASOURCE_USERNAME # 변경됨 (기존: POSTGRES_USER)
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD # 변경됨 (기존: POSTGRES_PASS)
+              valueFrom:
+                secretKeyRef:
+                  name: demo-db
+                  key: password
+
+          # [추가 권장] 헬스 체크 (없으면 배포 도중 에러 발생 가능)
+          readinessProbe:
+            httpGet:
+              path: / # 혹은 /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+
           resources:
             requests:
               cpu: "200m"
-              memory: "256Mi"
+              memory: "512Mi" # [수정 2] 256Mi -> 512Mi (안정성 확보)
             limits:
               cpu: "500m"
               memory: "1Gi"
