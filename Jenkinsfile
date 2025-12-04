@@ -30,6 +30,11 @@ spec:
       tty: true
       securityContext:
         runAsUser: 0
+      resources:
+        requests:
+          ephemeral-storage: 500Mi
+        limits:
+          ephemeral-storage: 1Gi
       volumeMounts:
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
@@ -46,18 +51,28 @@ spec:
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
+      resources:
+        requests:
+          ephemeral-storage: 500Mi
+        limits:
+          ephemeral-storage: 1Gi
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
 
     # =======================
-    # ③ Kubectl (직접 제작 이미지)
+    # ③ Kubectl
     # =======================
     - name: kubectl
       image: leeplayed/kubectl:1.28
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
+      resources:
+        requests:
+          ephemeral-storage: 200Mi
+        limits:
+          ephemeral-storage: 500Mi
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
