@@ -30,7 +30,7 @@ spec:
         app: petclinic
     spec:
       containers:
-        - name: workload
+        - name: petclinic-container
           image: leeplayed/spring-petclinic:latest
           ports:
             - name: http
