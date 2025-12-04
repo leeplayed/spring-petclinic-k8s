@@ -26,10 +26,15 @@ spec:
       command: ["cat"]
       tty: true
       volumeMounts:
+        # ⭐ FIXED: Docker registry login 설정 (config.json)
         - name: docker-config
-          mountPath: /kaniko/.docker/
+          mountPath: /kaniko/.docker/config.json
+          subPath: .dockerconfigjson
+          readOnly: true
+
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
+
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
       command: ["cat"]
@@ -37,6 +42,7 @@ spec:
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
+
     - name: kubectl
       image: bitnami/kubectl:latest
       command: ["cat"]
@@ -44,15 +50,18 @@ spec:
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
+
     - name: jnlp
       image: jenkins/inbound-agent:latest
       volumeMounts:
         - name: workspace-volume
           mountPath: "/home/jenkins/agent/workspace/"
+
   volumes:
     - name: docker-config
       secret:
-        secretName: "dockertoken"
+        secretName: "dockertoken"  # 이미 확인된 Secret
+
     - name: workspace-volume
       emptyDir: {}
 """
@@ -67,6 +76,7 @@ spec:
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -99,7 +109,6 @@ echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
   --destination ${REGISTRY}/${IMAGE}:${TAG} \
   --snapshot-mode=redo \
   --cache=true
-
 """
                 }
             }
