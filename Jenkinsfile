@@ -58,11 +58,10 @@ spec:
           cpu: "500m"
 
     # ---------------------------------------------------------
-    # 3) Kubectl 컨테이너 (🔥 문제 해결한 1줄 수정!)
+    # 3) Kubectl 컨테이너 (🔥 해결방법 1 적용됨)
     # ---------------------------------------------------------
     - name: kubectl
-      image: registry.k8s.io/kubectl:v1.28.0   # ← 정상적으로 pull 되는 공식 이미지
-      command: ["cat"]
+      image: registry.k8s.io/kubectl:v1.28.0
       tty: true
       volumeMounts:
         - name: workspace-volume
