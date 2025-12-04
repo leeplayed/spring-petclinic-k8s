@@ -10,7 +10,6 @@ metadata:
   labels:
     jenkins: kaniko-build
 spec:
-  # ⭐ RBAC 권한 부여를 위한 핵심 설정
   serviceAccountName: jenkins 
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
@@ -21,19 +20,17 @@ spec:
       effect: "NoSchedule"
 
   containers:
-    # --------------------------
-    # 1) Kaniko (시작 오류 최종 해결 및 권한 유지)
-    # --------------------------
+    # ---------------------------------------------------------
+    # 1) Kaniko 컨테이너
+    # ---------------------------------------------------------
     - name: kaniko
-      image: gcr.io/kaniko-project/executor:debug # 안정적인 debug 태그 사용
-      # ⭐ 수정: StartError 방지를 위해 "/bin/sh"를 사용하여 영구 대기 상태로 유지
-      command: ["/bin/sh"] 
+      image: gcr.io/kaniko-project/executor:debug
+      command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
       tty: true
       securityContext:
-        runAsUser: 0     # 권한 문제 해결
+        runAsUser: 0
       volumeMounts:
-        # Secret 키(.dockerconfigjson)를 Kaniko가 찾는 파일명(config.json)으로 직접 마운트
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
           subPath: .dockerconfigjson
@@ -45,9 +42,9 @@ spec:
           memory: "256Mi"
           cpu: "250m"
 
-    # --------------------------
-    # 2) Maven
-    # --------------------------
+    # ---------------------------------------------------------
+    # 2) Maven 컨테이너
+    # ---------------------------------------------------------
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
       command: ["cat"]
@@ -60,11 +57,11 @@ spec:
           memory: "512Mi"
           cpu: "500m"
 
-    # --------------------------
-    # 3) Kubectl
-    # --------------------------
+    # ---------------------------------------------------------
+    # 3) Kubectl 컨테이너 (🔥 수정된 부분!)
+    # ---------------------------------------------------------
     - name: kubectl
-      image: lachlanevenson/k8s-kubectl:v1.28.0 # 사용자 요청 이미지
+      image: bitnami/kubectl:1.28
       command: ["cat"]
       tty: true
       volumeMounts:
@@ -75,9 +72,9 @@ spec:
           memory: "128Mi"
           cpu: "100m"
 
-    # --------------------------
-    # 4) JNLP Agent
-    # --------------------------
+    # ---------------------------------------------------------
+    # 4) JNLP 에이전트
+    # ---------------------------------------------------------
     - name: jnlp
       image: jenkins/inbound-agent:latest
       volumeMounts:
