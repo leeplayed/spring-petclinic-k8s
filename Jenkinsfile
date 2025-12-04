@@ -54,7 +54,6 @@ spec:
           mountPath: "/home/jenkins/agent/workspace/"
 
   volumes:
-    # 🔥 DockerHub 로그인 Secret
     - name: docker-config
       secret:
         secretName: "dockertoken"
@@ -62,7 +61,6 @@ spec:
         - key: .dockerconfigjson
           path: config.json
 
-    # 🔥 Workspace 공유 볼륨
     - name: workspace-volume
       emptyDir: {}
 """
@@ -117,22 +115,4 @@ echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
 
         stage('Deploy to Kubernetes') {
             steps {
-                container('kubectl') {
-                    sh """
-kubectl set image deployment/petclinic workload=${REGISTRY}/${IMAGE}:${TAG} -n ${K8S_NAMESPACE}
-kubectl rollout status deployment/petclinic -n ${K8S_NAMESPACE} --timeout=5m
-"""
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo "🎉 SUCCESS: Build & Deploy Completed!"
-        }
-        failure {
-            echo "🔥 FAILED: Check the Jenkins logs!"
-        }
-    }
-}
+                container('k
