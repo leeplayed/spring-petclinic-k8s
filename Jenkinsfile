@@ -119,10 +119,15 @@ spec:
             steps {
                 // maven 컨테이너에서 빌드 실행
                 container('maven') {
-                    // Maven 로컬 리포지토리 경로를 -Dmaven.repo.local 옵션으로 직접 전달하여 오류 수정
+                    // Maven 로컬 리포지토리 경로를 MAVEN_OPTS 환경 변수를 통해 설정합니다.
                     sh '''
-# Maven 빌드 실행. 로컬 리포지토리($WORKSPACE/.m2)를 지정하여 캐싱 효과를 얻습니다.
-./mvnw clean package -DskipTests -Dcheckstyle.skip=true -Dmaven.repo.local=$WORKSPACE/.m2
+# 로컬 Maven 캐시 디렉토리를 워크스페이스 내부에 생성합니다.
+mkdir -p $WORKSPACE/.m2
+
+# MAVEN_OPTS를 사용하여 로컬 리포지토리 경로를 환경 변수로 설정하고 Maven을 실행합니다.
+# 이렇게 하면 Maven 목표(goal)가 올바르게 인식됩니다.
+export MAVEN_OPTS="-Dmaven.repo.local=$WORKSPACE/.m2"
+./mvnw clean package -DskipTests -Dcheckstyle.skip=true
 '''
                 }
             }
