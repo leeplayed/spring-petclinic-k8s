@@ -21,7 +21,9 @@ spec:
       effect: "NoSchedule"
 
   containers:
-
+    # --------------------------------------
+    # Kaniko Container
+    # --------------------------------------
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
       tty: true
@@ -44,9 +46,14 @@ spec:
           subPath: config.json
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
+        - name: kaniko-cache
+          mountPath: /kaniko/cache
         - name: maven-cache
           mountPath: /root/.m2
 
+    # --------------------------------------
+    # Maven Container
+    # --------------------------------------
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
       tty: true
@@ -67,6 +74,9 @@ spec:
         - name: maven-cache
           mountPath: /root/.m2
 
+    # --------------------------------------
+    # Kubectl Container
+    # --------------------------------------
     - name: kubectl
       image: leeplayed/kubectl:1.28
       tty: true
@@ -85,6 +95,9 @@ spec:
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
 
+    # --------------------------------------
+    # JNLP Agent
+    # --------------------------------------
     - name: jnlp
       image: jenkins/inbound-agent:latest
       resources:
@@ -100,6 +113,9 @@ spec:
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
 
+  # --------------------------------------
+  # VOLUMES
+  # --------------------------------------
   volumes:
     - name: docker-config
       secret:
@@ -108,11 +124,21 @@ spec:
         - key: ".dockerconfigjson"
           path: config.json
 
+    # Jenkins workspace (emptyDir OK)
     - name: workspace-volume
       emptyDir: {}
 
+    # Maven cache → hostPath
     - name: maven-cache
-      emptyDir: {}
+      hostPath:
+        path: /data/maven-cache
+        type: DirectoryOrCreate
+
+    # Kaniko cache → hostPath
+    - name: kaniko-cache
+      hostPath:
+        path: /data/kaniko-cache
+        type: DirectoryOrCreate
 """
         }
     }
@@ -139,9 +165,9 @@ spec:
                 container('maven') {
                     sh """
 export HOME=\$WORKSPACE
-mvn clean package \\
-    -DskipTests \\
-    -Dcheckstyle.skip=true \\
+mvn clean package \
+    -DskipTests \
+    -Dcheckstyle.skip=true \
     -Dmaven.repo.local=/root/.m2
 """
                 }
@@ -154,12 +180,13 @@ mvn clean package \\
                     sh """
 echo "===== Kaniko Build Start: ${REGISTRY}/${IMAGE}:${TAG} ====="
 
-/kaniko/executor \\
-  --context \$WORKSPACE \\
-  --dockerfile Dockerfile \\
-  --destination ${REGISTRY}/${IMAGE}:${TAG} \\
-  --snapshot-mode=redo \\
-  --cache=true
+/kaniko/executor \
+  --context \$WORKSPACE \
+  --dockerfile Dockerfile \
+  --destination ${REGISTRY}/${IMAGE}:${TAG} \
+  --cache=true \
+  --cache-dir=/kaniko/cache \
+  --snapshot-mode=redo
 """
                 }
             }
