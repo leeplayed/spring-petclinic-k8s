@@ -9449,7 +9449,7 @@ strong {
   border-left: 0;
   border-right: 0; }
 
-.navbar a.navbar-brand {
+/* .navbar a.navbar-brand {
   background: url("../images/spring-logo-dataflow.png") -1px -1px no-repeat;
   margin: 12px 0 6px;
   width: 229px;
@@ -9466,7 +9466,7 @@ strong {
   opacity: 0;
   -moz-transition: opacity 0.12s ease-in-out;
   -webkit-transition: opacity 0.12s ease-in-out;
-  -o-transition: opacity 0.12s ease-in-out; }
+  -o-transition: opacity 0.12s ease-in-out; } */
 
 .navbar a:hover.navbar-brand span {
   opacity: 1; }
