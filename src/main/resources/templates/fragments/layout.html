@@ -8,76 +8,125 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="shortcut icon" type="image/x-icon" th:href="@{/resources/images/favicon.png}">
-  <title>PetClinic :: a Spring Framework demonstration</title>
+
+  <title>4조 PetClinic :: Welcome!</title>
+
+  <!-- 기존 폰트/아이콘 유지 -->
   <link th:href="@{/webjars/font-awesome/css/font-awesome.min.css}" rel="stylesheet">
+
+  <!-- 기본 Petclinic 스타일 + 커스텀 색상 -->
   <link rel="stylesheet" th:href="@{/resources/css/petclinic.css}" />
+
+  <!-- 🔵 커스텀 하늘색 테마 적용 -->
+  <style>
+    body {
+      background-color: #e6f4ff; /* 전체 하늘색 배경 */
+    }
+
+    .navbar {
+      background-color: #4da3ff !important; /* 상단 바 하늘색 */
+    }
+
+    .navbar-brand {
+      font-weight: bold;
+      font-size: 1.4rem;
+      color: white !important;
+    }
+
+    .navbar-brand span {
+      color: #ffffff;
+    }
+
+    .nav-link {
+      color: white !important;
+    }
+
+    .nav-link.active {
+      font-weight: bold;
+      text-decoration: underline;
+    }
+
+    /* 컨텐츠 배경 */
+    .xd-container {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* footer 로고 */
+    .logo {
+      width: 160px;
+      margin-top: 20px;
+      opacity: 0.8;
+    }
+  </style>
 
 </head>
 
 <body>
 
-  <nav class="navbar navbar-expand-lg navbar-dark" role="navigation">
+  <!-- 🔵 상단 네비게이션 영역 -->
+  <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid">
-      <a class="navbar-brand" th:href="@{/}"><span></span></a>
+
+      <!-- 브랜드 영역 -->
+      <a class="navbar-brand" th:href="@{/}">
+        🔵 4조 PetClinic
+      </a>
+
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-navbar">
         <span class="navbar-toggler-icon"></span>
       </button>
+
       <div class="collapse navbar-collapse" id="main-navbar" style>
 
+        <!-- 메뉴 템플릿 fragment -->
         <ul class="navbar-nav me-auto mb-2 mb-lg-0" th:remove="all">
-
           <li th:fragment="menuItem (link,active,title,glyph,text)" th:class="nav-item">
-            <a th:class="${active==menu ? 'nav-link active' : 'nav-link'}" th:href="@{__${link}__}" th:title="${title}">
-              <span th:class="'fa fa-'+${glyph}" class="fa fa-home"></span>
-              <span th:text="${text}">Template</span>
+            <a th:class="${active==menu ? 'nav-link active' : 'nav-link'}"
+              th:href="@{__${link}__}"
+              th:title="${title}">
+              <span th:class="'fa fa-'+${glyph}"></span>
+              <span th:text="${text}">Menu</span>
             </a>
           </li>
-
         </ul>
 
+        <!-- 실제 메뉴 리스트 -->
         <ul class="nav navbar-nav me-auto">
 
-          <li th:replace="~{::menuItem ('/','home','home page','home',#{home})}">
-            <span class="fa fa-home" aria-hidden="true"></span>
-            <span th:text="#{home}">Home</span>
-          </li>
+          <li th:replace="~{::menuItem ('/','home','Home','home','홈')}"></li>
 
-          <li th:replace="~{::menuItem ('/owners/find','owners','find owners','search',#{findOwners})}">
-            <span class="fa fa-search" aria-hidden="true"></span>
-            <span th:text="#{findOwners}">Find owners</span>
-          </li>
+          <li th:replace="~{::menuItem ('/owners/find','owners','Find Owners','search','주인 찾기')}"></li>
 
-          <li th:replace="~{::menuItem ('/vets.html','vets','veterinarians','th-list',#{vets})}">
-            <span class="fa fa-th-list" aria-hidden="true"></span>
-            <span th:text="#{vets}">Veterinarians</span>
-          </li>
+          <li th:replace="~{::menuItem ('/vets.html','vets','Veterinarians','th-list','수의사 목록')}"></li>
 
-          <li
-            th:replace="~{::menuItem ('/oups','error','trigger a RuntimeException to see how it is handled','exclamation-triangle',#{error})}">
-            <span class="fa exclamation-triangle" aria-hidden="true"></span>
-            <span th:text="#{error}">Error</span>
-          </li>
+          <li th:replace="~{::menuItem ('/oups','error','Error','exclamation-triangle','오류 테스트')}"></li>
 
         </ul>
+
       </div>
     </div>
   </nav>
+
+  <!-- 🔵 메인 컨텐츠 영역 -->
   <div class="container-fluid">
     <div class="container xd-container">
 
+      <!-- 페이지마다 template을 삽입 -->
       <th:block th:insert="${template}" />
 
-      <br />
-      <br />
-      <div class="container">
-        <div class="row">
-          <div class="col-12 text-center">
-            <img src="../static/images/spring-logo.svg" th:src="@{/resources/images/spring-logo.svg}"
-              alt="VMware Tanzu Logo" class="logo">
-          </div>
-        </div>
+      <br /><br />
+
+      <!-- Footer -->
+      <div class="container text-center">
+        <img th:src="@{/resources/images/spring-logo.svg}"
+             alt="Spring Logo"
+             class="logo" />
+        <p style="color:#4da3ff; font-weight:bold; margin-top:10px;">© 4조 PetClinic</p>
       </div>
+
     </div>
   </div>
 
