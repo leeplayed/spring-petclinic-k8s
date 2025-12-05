@@ -11,6 +11,10 @@ metadata:
     jenkins: kaniko-build
 spec:
   serviceAccountName: jenkins
+
+  # -------------------------
+  # ① Tolerations (정리된 버전)
+  # -------------------------
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -19,100 +23,117 @@ spec:
       operator: "Exists"
       effect: "NoSchedule"
 
+  # -------------------------
+  # ② Build Containers
+  # -------------------------
   containers:
-    # =======================
-    # ① Kaniko
-    # =======================
+
+    # ===== Kaniko =====
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
+      tty: true
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
-      tty: true
       securityContext:
         runAsUser: 0
       resources:
         requests:
+          cpu: "500m"
+          memory: "1Gi"
           ephemeral-storage: 2Gi
         limits:
+          cpu: "1"
+          memory: "2Gi"
           ephemeral-storage: 5Gi
       volumeMounts:
         - name: docker-config
           mountPath: /kaniko/.docker/config.json
           subPath: config.json
-          readOnly: true
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
         - name: maven-cache
           mountPath: /root/.m2
 
-    # =======================
-    # ② Maven
-    # =======================
+    # ===== Maven =====
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
+      tty: true
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
-      tty: true
       resources:
         requests:
+          cpu: "500m"
+          memory: "1Gi"
           ephemeral-storage: 2Gi
         limits:
+          cpu: "1"
+          memory: "2Gi"
           ephemeral-storage: 5Gi
       volumeMounts:
         - name: workspace-volume
-          mountPath: "/home/jenkins/agent/workspace/"
+          mountPath: /home/jenkins/agent/workspace/
         - name: maven-cache
           mountPath: /root/.m2
 
-    # =======================
-    # ③ Kubectl
-    # =======================
+    # ===== Kubectl =====
     - name: kubectl
       image: leeplayed/kubectl:1.28
+      tty: true
       command: ["/bin/sh"]
       args: ["-c", "sleep infinity"]
-      tty: true
       resources:
         requests:
+          cpu: "250m"
+          memory: "512Mi"
           ephemeral-storage: 1Gi
         limits:
+          cpu: "500m"
+          memory: "1Gi"
           ephemeral-storage: 2Gi
       volumeMounts:
         - name: workspace-volume
-          mountPath: "/home/jenkins/agent/workspace/"
+          mountPath: /home/jenkins/agent/workspace/
 
-    # =======================
-    # ④ JNLP
-    # =======================
+    # ===== JNLP =====
     - name: jnlp
       image: jenkins/inbound-agent:latest
       resources:
         requests:
+          cpu: "100m"
+          memory: "256Mi"
           ephemeral-storage: 500Mi
         limits:
+          cpu: "500m"
+          memory: "512Mi"
           ephemeral-storage: 1Gi
       volumeMounts:
         - name: workspace-volume
-          mountPath: "/home/jenkins/agent/workspace/"
+          mountPath: /home/jenkins/agent/workspace/
 
+  # -------------------------
+  # ③ Volumes
+  # -------------------------
   volumes:
     - name: docker-config
       secret:
         secretName: dockertoken
         items:
-          - key: ".dockerconfigjson"
-            path: config.json
+        - key: ".dockerconfigjson"
+          path: config.json
 
     - name: workspace-volume
       emptyDir: {}
 
-    # Maven dependency cache
     - name: maven-cache
       emptyDir: {}
+
 """
         }
     }
 
+    # -------------------------
+    # ENV
+    # -------------------------
     environment {
         REGISTRY = "docker.io/leeplayed"
         IMAGE = "petclinic"
@@ -121,6 +142,7 @@ spec:
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
