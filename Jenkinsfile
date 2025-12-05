@@ -12,9 +12,6 @@ metadata:
 spec:
   serviceAccountName: jenkins
 
-  # -------------------------
-  # ① Tolerations (정리된 버전)
-  # -------------------------
   tolerations:
     - key: "node-role.kubernetes.io/control-plane"
       operator: "Exists"
@@ -23,12 +20,8 @@ spec:
       operator: "Exists"
       effect: "NoSchedule"
 
-  # -------------------------
-  # ② Build Containers
-  # -------------------------
   containers:
 
-    # ===== Kaniko =====
     - name: kaniko
       image: gcr.io/kaniko-project/executor:debug
       tty: true
@@ -54,7 +47,6 @@ spec:
         - name: maven-cache
           mountPath: /root/.m2
 
-    # ===== Maven =====
     - name: maven
       image: maven:3.9.6-eclipse-temurin-17
       tty: true
@@ -75,7 +67,6 @@ spec:
         - name: maven-cache
           mountPath: /root/.m2
 
-    # ===== Kubectl =====
     - name: kubectl
       image: leeplayed/kubectl:1.28
       tty: true
@@ -94,7 +85,6 @@ spec:
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
 
-    # ===== JNLP =====
     - name: jnlp
       image: jenkins/inbound-agent:latest
       resources:
@@ -110,9 +100,6 @@ spec:
         - name: workspace-volume
           mountPath: /home/jenkins/agent/workspace/
 
-  # -------------------------
-  # ③ Volumes
-  # -------------------------
   volumes:
     - name: docker-config
       secret:
@@ -126,14 +113,10 @@ spec:
 
     - name: maven-cache
       emptyDir: {}
-
 """
         }
     }
 
-    # -------------------------
-    # ENV
-    # -------------------------
     environment {
         REGISTRY = "docker.io/leeplayed"
         IMAGE = "petclinic"
