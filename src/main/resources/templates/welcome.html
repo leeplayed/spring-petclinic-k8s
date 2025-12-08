@@ -1,25 +1,16 @@
 <!DOCTYPE html>
-<html xmlns:th="https://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: layout (~{::body}, 'home')}">
+
+<html xmlns:th="https://www.thymeleaf.org" th:replace="~{fragments/layout :: layout (~{::body},'home')}">
 
 <body>
 
-  <h2 style="color:#008CFF; font-size:32px; text-align:center;">
-    4조 🌤️
-  </h2>
-
-  <p style="text-align:center; color:#0077CC; font-size:18px;">
-    환영합니다! 4조 CI/CD 파이프라인 데모 페이지입니다.
-  </p>
-
+  <h2 th:text="#{welcome}">Welcome</h2>
   <div class="row">
-    <div class="col-md-12 text-center">
-      <img class="img-responsive" 
-           src="../static/resources/images/pets.png"
-           th:src="@{/resources/images/pets.png}"
-           style="max-width:300px; margin-top:20px;" />
+    <div class="col-md-12">
+      <img class="img-responsive" src="../static/resources/images/pets.png" th:src="@{/resources/images/pets.png}" />
     </div>
   </div>
 
 </body>
+
 </html>
