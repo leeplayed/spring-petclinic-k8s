@@ -1,17 +1,19 @@
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
-  name: default-pool
+  name: combined-pool
   namespace: metallb-system
 spec:
   addresses:
-    - 192.168.20.240-192.168.20.250   # <<-- 네 환경에 맞게 지정
+    - 192.168.20.200-192.168.20.250
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
 metadata:
-  name: default-advertisement
+  name: combined-advertisement
   namespace: metallb-system
 spec:
   ipAddressPools:
-    - default-pool
+    - combined-pool
+  interfaces:
+    - ens33
