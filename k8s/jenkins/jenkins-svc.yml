@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-svc
+  namespace: jenkins
+spec:
+  selector:
+    app: jenkins     # n1.txt에 있는 파드를 찾아내는 핵심 라벨
+  ports:
+  - name: http
+    port: 8080       # 젠킨스 웹 접속 포트
+    targetPort: 8080
+  - name: agent
+    port: 50000      # 젠킨스 에이전트(슬레이브) 통신 포트
+    targetPort: 50000
+  type: ClusterIP    # 인그레스 뒤에 숨어있으므로 내부 IP만 있으면 됩니다

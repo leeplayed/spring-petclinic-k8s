@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: petclinic-servicemonitor
+  namespace: monitoring
+  labels:
+    release: monitoring-stack
+spec:
+  selector:
+    matchLabels:
+      app: petclinic      # Service의 label
+  namespaceSelector:
+    matchNames:
+      - app           # WAS가 배포된 namespace
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+

@@ -1,0 +1,15 @@
+grafana:
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://monitoring-stack-kube-prom-prometheus.monitoring:9090
+        isDefault: true
+      - name: Alertmanager
+        type: alertmanager
+        access: proxy
+        url: http://monitoring-stack-kube-prom-alertmanager.monitoring:9093
+

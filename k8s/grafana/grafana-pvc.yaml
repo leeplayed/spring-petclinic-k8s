@@ -1,0 +1,16 @@
+grafana:
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: local-path
+      
+prometheus:
+  prometheusSpec:
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
